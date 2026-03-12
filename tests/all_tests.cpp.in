@@ -1,0 +1,53 @@
+/**
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software; you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * You should refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+
+/**
+ * @file all_tests.cpp
+ * @brief 主测试入口 - 自动生成文件
+ */
+
+#include "test_common.h"
+#include <iostream>
+
+// 包含所有算子的测试头文件
+@TEST_INCLUDES@
+
+int main() {
+    std::cout << "========================================" << std::endl;
+    std::cout << "       ops-fft 算子测试套件" << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << std::endl;
+
+    // 初始化 ACL
+    aclrtStream stream = nullptr;
+    int ret = OpsFftTest::ACLManager::init(stream);
+    if (ret != 0) {
+        std::cerr << "Failed to initialize ACL" << std::endl;
+        return 1;
+    }
+
+    // 运行所有测试
+    auto& tests = OpsFftTest::TestRegistry::get_tests();
+    for (const auto& test_entry : tests) {
+        OpsFftTest::TestStats local_stats;
+        TEST_PRINT_HEADER(test_entry.name);
+        test_entry.func(stream, local_stats);
+        TEST_PRINT_RESULT(test_entry.name, local_stats);
+        std::cout << std::endl;
+    }
+
+    // 打印全局结果
+    TEST_PRINT_GLOBAL_RESULT();
+
+    // 清理 ACL
+    OpsFftTest::ACLManager::finalize(stream);
+
+    return (OpsFftTest::g_global_stats.failed == 0) ? 0 : 1;
+}
