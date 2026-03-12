@@ -16,27 +16,27 @@
 #   -h, --help          显示帮助信息
 #
 # 行为说明:
-#   无参数                编译所有算子，不执行测试
-#   --ops=rfft1_d             只编译 rfft1_d 算子，不执行测试
-#   --ops=rfft1_d,sub         编译 rfft1_d 和 irfft1_d 算子，不执行测试
-#   --run                 编译所有算子，并执行所有算子的测试
-#   --ops=rfft1_d --run       编译 rfft1_d 算子，并执行 rfft1_d 算子的测试
-#   --ops=rfft1_d,sub --run   编译 rfft1_d,irfft1_d 算子，并执行这些算子的测试
-#   --pkg                 编译所有算子并打包成 .run 文件 (默认 SoC: Ascend950)
-#   --ops=rfft1_d --pkg       编译 rfft1_d 算子并打包成 .run 文件
-#   --soc=ascend950 --pkg  为 Ascend950 芯片打包 (支持小写)
-#   -j16                  使用 16 个线程编译
+#   无参数                          编译所有算子，不执行测试
+#   --ops=rfft1_d                  只编译 rfft1_d 算子，不执行测试
+#   --ops=rfft1_d,irfft1_d         编译 rfft1_d 和 irfft1_d 算子，不执行测试
+#   --run                          编译所有算子，并执行所有算子的测试
+#   --ops=rfft1_d --run            编译 rfft1_d 算子，并执行 rfft1_d 算子的测试
+#   --ops=rfft1_d,irfft1_d --run   编译 rfft1_d,irfft1_d 算子，并执行这些算子的测试
+#   --pkg                          编译所有算子并打包成 .run 文件 (默认 SoC: Ascend950)
+#   --ops=rfft1_d --pkg            编译 rfft1_d 算子并打包成 .run 文件
+#   --soc=ascend950 --pkg          为 Ascend950 芯片打包 (支持小写)
+#   -j16                           使用 16 个线程编译
 #
 # 示例:
-#   ./build.sh                        # 编译所有算子 (默认 8 线程)
+#   ./build.sh                            # 编译所有算子 (默认 8 线程)
 #   ./build.sh --ops=rfft1_d              # 只编译 rfft1_d 算子
-#   ./build.sh -j16                   # 使用 16 线程编译所有算子
-#   ./build.sh --run                  # 编译所有算子并执行测试
+#   ./build.sh -j16                       # 使用 16 线程编译所有算子
+#   ./build.sh --run                      # 编译所有算子并执行测试
 #   ./build.sh --ops=rfft1_d --run        # 编译 rfft1_d 算子并执行测试
-#   ./build.sh --pkg                  # 编译所有算子并打包 (默认: Ascend950)
+#   ./build.sh --pkg                      # 编译所有算子并打包 (默认: Ascend950)
 #   ./build.sh --ops=rfft1_d --pkg        # 编译 rfft1_d 算子并打包
-#   ./build.sh --soc=ascend950 --pkg  # 为 Ascend950 打包 (支持小写输入)
-#   ./build.sh --test-timeout=600 --run  # 运行测试 with 600s timeout
+#   ./build.sh --soc=ascend950 --pkg      # 为 Ascend950 打包 (支持小写输入)
+#   ./build.sh --test-timeout=600 --run   # 运行测试 with 600s timeout
 #
 # 支持的 SoC 型号:
 #   Ascend950 (默认)
@@ -201,17 +201,17 @@ Supported SoC models:
   Ascend310P   (dav-2101)
 
 Examples:
-  $(basename "$0")                          # Build all operators (default 8 threads)
+  $(basename "$0")                              # Build all operators (default 8 threads)
   $(basename "$0") --ops=rfft1_d                # Build only 'rfft1_d' operator
-  $(basename "$0") --ops=rfft1_d,sub            # Build 'rfft1_d' and 'irfft1_d' operators
-  $(basename "$0") -j16                     # Build with 16 threads
-  $(basename "$0") --run                    # Build all and run tests
+  $(basename "$0") --ops=rfft1_d,irfft1_d       # Build 'rfft1_d' and 'irfft1_d' operators
+  $(basename "$0") -j16                         # Build with 16 threads
+  $(basename "$0") --run                        # Build all and run tests
   $(basename "$0") --ops=rfft1_d --run          # Build 'rfft1_d' and run tests
-  $(basename "$0") --pkg                    # Build package (default SoC: Ascend950)
+  $(basename "$0") --pkg                        # Build package (default SoC: Ascend950)
   $(basename "$0") --ops=rfft1_d --pkg          # Build 'rfft1_d' and package
-  $(basename "$0") --soc=Ascend950 --pkg    # Build package for Ascend950
-  $(basename "$0") --soc=ascend950 --pkg    # Build package (lowercase also works)
-  $(basename "$0") --test-timeout=600 --run  # Run tests with 600s timeout
+  $(basename "$0") --soc=Ascend950 --pkg        # Build package for Ascend950
+  $(basename "$0") --soc=ascend950 --pkg        # Build package (lowercase also works)
+  $(basename "$0") --test-timeout=600 --run     # Run tests with 600s timeout
 
 EOF
 }
@@ -366,8 +366,8 @@ run_tests() {
     }
 
     # 检查测试可执行文件
-    if [ ! -f "./all_ops_test" ]; then
-        log_error "Test executable not found: ./all_ops_test"
+    if [ ! -f "./tests/all_ops_test" ]; then
+        log_error "Test executable not found: ./tests/all_ops_test"
         log_error "Please build the project first with: ./build.sh --run"
         exit 1
     fi
@@ -376,7 +376,7 @@ run_tests() {
 
     # 临时禁用 set -e，手动处理错误
     set +e
-    timeout -k 1s ${TEST_TIMEOUT}s ./all_ops_test 2>&1
+    timeout -k 1s ${TEST_TIMEOUT}s ./tests/all_ops_test 2>&1
     test_result=$?
     set -e
 

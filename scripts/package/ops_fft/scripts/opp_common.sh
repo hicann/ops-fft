@@ -34,10 +34,10 @@ getdate() {
 logandprint() {
   local is_error_level=$(echo "$1" | grep -E 'ERROR|WARN|INFO')
   if [ "${is_quiet}" != "y" ] || [ "${is_error_level}" != "" ]; then
-    echo "[OpsTensor] [$(getdate)] ""$1"
+    echo "[OpsFft] [$(getdate)] ""$1"
   fi
   if [ -d "${_LOG_PATH}" ]; then
-    echo "[OpsTensor] [$(getdate)] ""$1" >>"${_INSTALL_LOG_FILE}"
+    echo "[OpsFft] [$(getdate)] ""$1" >>"${_INSTALL_LOG_FILE}"
   fi
 }
 

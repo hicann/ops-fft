@@ -42,6 +42,8 @@ extern "C" {
  */
 ACLFFT_API aclError acltensorAdd(float* x1, float* x2, float* y, int64_t n, void* stream);
 
+ACLFFT_API aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, uint32_t batches, void *stream);
+
 #ifdef __cplusplus
 }
 #endif

@@ -3,7 +3,7 @@
     <dir_info install_mod="550">
         <path value="$(TARGET_ENV)/include"/>
     </dir_info>
-    <file_info value="ops_tensor_inc" copy_type="delivery" src_path="" dst_path="include/" install_path="$(TARGET_ENV)/include/">
-        <file value="cann_ops_tensor.h" install_mod="550"/>
+    <file_info value="ops_fft_inc" copy_type="delivery" src_path="" dst_path="include/" install_path="$(TARGET_ENV)/include/">
+        <file value="cann_ops_fft.h" install_mod="550"/>
     </file_info>
 </block>

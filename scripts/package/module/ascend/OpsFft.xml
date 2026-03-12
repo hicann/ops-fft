@@ -3,7 +3,7 @@
     <dir_info install_mod="550">
         <path value="$(TARGET_ENV)/lib64"/>
     </dir_info>
-    <file_info value="ops_tensor_lib" copy_type="delivery" src_path="" dst_path="lib64/" install_path="$(TARGET_ENV)/lib64/">
-        <file value="libcann_ops_tensor.so" install_mod="550"/>
+    <file_info value="ops_fft_lib" copy_type="delivery" src_path="" dst_path="lib64/" install_path="$(TARGET_ENV)/lib64/">
+        <file value="libcann_ops_fft.so" install_mod="550"/>
     </file_info>
 </block>
