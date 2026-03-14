@@ -1532,6 +1532,637 @@ hiptensorCreatePlan(handle, &plan, opDesc, pref, workspaceSize);
 
 **本质**：在"选择速度"和"内核质量"之间权衡。
 
+### 8.7.6 mSelectionAlgorithm 字段深度分析
+
+`mSelectionAlgorithm`（对应 API 中的 `algo` 参数）是控制**内核选择策略**的核心字段，决定了如何从几十个候选内核中选出最优的一个。
+
+#### 枚举定义
+
+```cpp
+// library/include/hiptensor/hiptensor_types.h:164-174
+typedef enum
+{
+    HIPTENSOR_ALGO_ACTOR_CRITIC = -8,  // 使用 Actor-Critic 机器学习模型
+    HIPTENSOR_ALGO_DEFAULT = -1,       // 快速启发式选择
+    HIPTENSOR_ALGO_DEFAULT_PATIENT = -6, // 更精确但耗时的模型
+} hiptensorAlgo_t;
+```
+
+#### 三种算法的核心区别
+
+| 算法 | 选择方法 | 选择速度 | 精度 | 适用场景 |
+|------|---------|---------|------|---------|
+| **DEFAULT** | `bruteForceModel` 遍历测试 | 中等 | 高 | 大多数情况（推荐） |
+| **DEFAULT_PATIENT** | `bruteForceModel` 更多测试次数 | 慢 | 最高 | 追求极致性能 |
+| **ACTOR_CRITIC** | 机器学习模型预测 | 快 | 中等 | 快速启动场景 |
+
+#### bruteForceModel 详解（DEFAULT / DEFAULT_PATIENT）
+
+**工作原理**：实际运行每个候选内核进行性能测试
+
+```cpp
+// library/src/contraction/contraction_selection.cpp
+hiptensorStatus_t bruteForceModel(ContractionSolution** winner,
+                                  std::vector<ContractionSolution*>& candidates, ...)
+{
+    // 1. 分配测试用的 GPU 内存
+    CHECK_HIP_ALLOC(hipMalloc(&A_d, sizeA));
+    CHECK_HIP_ALLOC(hipMalloc(&B_d, sizeB));
+    CHECK_HIP_ALLOC(hipMalloc(&D_d, sizeD));
+    CHECK_HIP_ALLOC(hipMalloc(&E_d, sizeE));
+    CHECK_HIP_ALLOC(hipMalloc(&wspace, workspaceSize));
+
+    // 2. 遍历每个候选内核
+    for(auto* solution : candidates)
+    {
+        // 实际执行内核并计时
+        auto [errorCode, time] = (*solution)(
+            &alpha, A_d, B_d, &beta, D_d, E_d,
+            lengths, strides, modes, ...
+            StreamConfig{
+                nullptr,           // stream
+                true,              // time_kernel = true（计时）
+                0,                 // log_level
+                options->coldRuns(),  // 预热次数
+                options->hotRuns(),   // 正式计时次数
+            });
+
+        if(errorCode == SUCCESS && time > 0)
+        {
+            // 计算性能指标
+            auto flops = 2 * m * n * k;  // 每个元素 K 次乘法 + K 次加法
+            auto bytes = solution->problemBytes();
+
+            PerfMetrics metrics = {
+                solution->uid(),       // 内核ID
+                solution->kernelName(), // 内核名称
+                time,                   // 平均执行时间
+                flops / (1e9 * time),   // TFLOPS
+                bytes / (1e6 * time)    // 带宽
+            };
+
+            if(metrics > bestMetrics)
+                bestSolution = solution;  // 更新最优
+        }
+    }
+
+    // 3. 按性能排序候选（用于后续 autotune）
+    std::sort(candidates by time);
+
+    // 4. 返回最优内核
+    *winner = bestSolution;
+}
+```
+
+#### bruteForceModel 的"假数据"测试
+
+bruteForceModel 在测试时使用的不是用户的真实数据，而是专门准备的测试数据：
+
+```cpp
+// 1. 张量数据：未初始化的 GPU 内存
+void *A_d, *B_d, *D_d, *E_d;
+
+hipMalloc(&A_d, sizeA);  // 只分配，未初始化（内容是垃圾数据）
+hipMalloc(&B_d, sizeB);
+hipMalloc(&D_d, sizeD);
+hipMalloc(&E_d, sizeE);
+
+// 2. 标量参数：特定值
+ScalarData alpha = 1.02;  // 避免 0 或 1
+ScalarData beta  = 1.03;
+```
+
+**为什么用 1.02, 1.03 而不是 0 或 1？**
+
+| 值 | 问题 |
+|---|---|
+| alpha = 0 | C = 0*(A*B) + beta*C，跳过矩阵乘法 |
+| alpha = 1 | 可能触发编译器优化（1*x = x） |
+| beta = 0 | 跳过加法操作 |
+
+使用 1.02/1.03 这种"普通值"确保所有计算步骤都会执行。
+
+**为什么未初始化内存也能测试性能？**
+
+性能测试关注的是**执行时间**，而非计算结果正确性：
+
+| 影响性能的因素（与数据值无关） | 不影响性能的因素 |
+|---|---|
+| 内存访问模式（连续/非连续） | 输入数据的具体值 |
+| 计算量（FLOPS） | 输出结果是否正确 |
+| 内存带宽利用率 | - |
+| GPU 资源占用（寄存器、共享内存） | - |
+
+**潜在局限性**：
+
+| 局限 | 影响 |
+|------|------|
+| 内存未初始化 | 可能触发 GPU ECC 错误（如果有） |
+| 不测试正确性 | 选中"最快"的内核可能有 bug |
+| 缓存状态不同 | 测试内存是新分配的，真实数据可能已缓存 |
+| 数据模式不同 | 特殊数据（全 0、稀疏）可能触发不同优化路径 |
+
+**与 INCREMENTAL 的对比**：
+
+| 对比项 | bruteForceModel | INCREMENTAL |
+|------|-----------------|-------------|
+| 数据来源 | 假数据（未初始化内存） | 用户真实数据 |
+| 执行时机 | 创建 Plan 时 | 真实执行时 |
+| 测试次数 | 集中一次性 | 分散多次 |
+| 准确性 | 可能有偏差 | 真实场景准确 |
+
+**关键特点**：
+- **实际执行**：不是理论估算，而是真跑每个内核
+- **多次测试**：coldRuns（预热）+ hotRuns（计时），取平均值
+- **性能指标**：执行时间、TFLOPS、带宽综合评估
+
+#### actorCriticModel 详解（ACTOR_CRITIC）
+
+**工作原理**：使用预训练的机器学习模型，根据问题特征直接预测最优内核
+
+```cpp
+// library/src/contraction/contraction_selection.cpp
+template <...>
+struct ActorCriticSelection
+{
+    static hiptensorStatus_t selectWinner(ContractionSolution** winner,
+                                          std::unordered_map<size_t, ContractionSolution*> const& candidates,
+                                          ...)
+    {
+        // 根据张量 rank 选择预训练的内核 UID
+        auto rank = getRank(a_ms_ks_strides);
+        size_t unique_id = 0;
+
+        if(options->isColMajorStrides())
+        {
+            // 列主序布局的预训练 UID
+            if(rank == 1)      unique_id = 16046312426561516674ull;
+            else if(rank == 2) unique_id = 5651259715737336589ull;
+            else if(rank == 3) unique_id = 5651259715737336589ull;
+            // ...
+        }
+        else
+        {
+            // 行主序布局的预训练 UID
+            if(rank == 1)      unique_id = 9021620837589482599ull;
+            else if(rank == 2) unique_id = 6053663486226699267ull;
+            // ...
+        }
+
+        // 直接查找预训练的最优内核
+        if(auto candidate = candidates.find(unique_id); candidate != candidates.end())
+        {
+            *winner = candidate->second;  // 直接返回，无需测试
+            return SUCCESS;
+        }
+        return EXECUTION_FAILED;
+    }
+};
+```
+
+**关键特点**：
+- **无需测试**：直接根据问题特征查找预训练的内核 ID
+- **速度极快**：O(1) 查找，没有运行开销
+- **依赖训练**：模型需要预先训练，可能不适应所有场景
+
+#### 选择流程对比
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     内核选择流程对比                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  DEFAULT / DEFAULT_PATIENT:                                     │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ 1. 获取所有候选内核（20-50 个）                           │   │
+│  │ 2. 遍历每个候选：                                         │   │
+│  │    - 分配测试内存                                         │   │
+│  │    - coldRuns 次预热运行                                   │   │
+│  │    - hotRuns 次正式计时                                   │   │
+│  │    - 计算性能指标                                         │   │
+│  │ 3. 按性能排序                                             │   │
+│  │ 4. 返回最优内核                                           │   │
+│  │ 5. 释放测试内存                                           │   │
+│  │ 耗时：50 内核 × 6 次运行 × 2ms ≈ 600ms                   │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ACTOR_CRITIC:                                                  │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ 1. 计算问题特征（rank、布局等）                           │   │
+│  │ 2. 查表获取预训练的内核 UID                               │   │
+│  │ 3. 从候选列表中查找对应内核                               │   │
+│  │ 4. 直接返回                                               │   │
+│  │ 耗时：< 1ms                                               │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 与 PlanCache 的协同工作
+
+无论使用哪种算法，选择结果都可以被缓存：
+
+```cpp
+// 缓存命中时，跳过所有算法选择
+if(planCache && cacheMode == PEDANTIC)
+{
+    auto Uid = planCache->querySolutionUid(desc);
+    if(Uid > 0)
+    {
+        winner = findSolutionByUid(candidates, Uid);  // 直接使用缓存
+    }
+}
+
+// 缓存未命中时，根据 mSelectionAlgorithm 选择
+if(result != SUCCESS)
+{
+    if(algo == DEFAULT || algo == DEFAULT_PATIENT)
+        bruteForceModel(&winner, candidates, ...);
+    else if(algo == ACTOR_CRITIC)
+        actorCriticModel(&winner, candidates, ...);
+
+    // 缓存选择结果
+    planCache->addCacheLine(hashId, winner->uid());
+}
+```
+
+**性能对比**：
+
+| 场景 | DEFAULT | ACTOR_CRITIC | 有缓存 |
+|------|---------|--------------|--------|
+| 首次运行 | ~600ms | <1ms | - |
+| 再次运行 | ~600ms | <1ms | <1ms |
+| 缓存命中 | <1ms | <1ms | <1ms |
+
+#### 使用建议
+
+| 场景 | 推荐 algo | mCacheMode | 说明 |
+|------|----------|------------|------|
+| **生产环境（推荐）** | `DEFAULT` | `PEDANTIC` | 首次运行耗时，后续快速 |
+| **追求极致性能** | `DEFAULT_PATIENT` | `PEDANTIC` | 更多测试次数，更准确 |
+| **快速启动** | `ACTOR_CRITIC` | `PEDANTIC` | 启动快，但可能不是最优 |
+| **调试/测试** | `DEFAULT` | `NONE` | 每次重新选择 |
+
+**本质**：`mSelectionAlgorithm` 决定了**时间换精度**还是**速度换精度**。
+
+### 8.7.7 mKernelRank 字段深度分析
+
+`mKernelRank` 是 `hiptensorPlanPreference` 中一个特殊的字段，目前处于**预留但未实际使用**的状态。
+
+#### 结构体中的位置
+
+```cpp
+// library/src/include/data_types.hpp:115-127
+struct hiptensorPlanPreference
+{
+    hiptensorAutotuneMode_t mAutotuneMode;
+    hiptensorCacheMode_t    mCacheMode;
+    int32_t                 mIncrementalCount;
+    int32_t                 mKernelRank;      // <-- KernelRank 字段
+    hiptensorJitMode_t      mJit;
+
+    hiptensorAlgo_t mSelectionAlgorithm;
+    std::vector<void*> mCandidates;
+    void*              mSolution;
+};
+```
+
+#### 含义：张量维度数
+
+根据文档 `docs/conceptual/programmers-guide.rst:70-82`，**Tensor rank 指的是张量的维度数**。在张量缩并操作中，维度被分为三类：
+
+| 维度类型 | 含义 | 出现位置 |
+|---------|------|---------|
+| **M 维度** | 只属于输入 A 的维度 | A[M0...Mn, K0...Kn] 和 C/D[M0...Mn, N0...Nn] |
+| **N 维度** | 只属于输入 B 的维度 | B[N0...Nn, K0...Kn] 和 C/D[M0...Mn, N0...Nn] |
+| **K 维度** | 收缩维度（求和维度） | 同时出现在 A 和 B 中 |
+
+**维度示例**：
+
+```
+例如矩阵乘法 C = A × B:
+- A: M×K
+- B: K×N
+- C: M×N
+- 每个 M/N/K 类别有 1 个维度
+
+例如高维张量缩并:
+- A[M0..M5, K0..K5] - 6个M维度 + 6个K维度
+- B[N0..N5, K0..K5] - 6个N维度 + 6个K维度
+- C[M0..M5, N0..N5] - 6个M维度 + 6个N维度
+- 这是 M6N6K6 配置，总共 rank 12
+```
+
+#### 代码中的使用
+
+**1. 设置接口**
+
+```cpp
+// library/src/hiptensor.cpp:590-592
+case HIPTENSOR_PLAN_PREFERENCE_KERNEL_RANK:
+    std::memcpy(&pref->mKernelRank, buf, sizeInBytes);
+    break;
+```
+
+**2. 默认值**
+
+```cpp
+// library/src/hiptensor.cpp:554
+(*pref)->mKernelRank = 0;
+```
+
+**3. 当前状态**
+
+`mKernelRank` 目前只是被存储，**并未在 kernel 选择逻辑中实际使用**。
+
+证据：
+- 只在设置时被赋值
+- 搜索整个代码库，没有任何地方读取或使用 `pref->mKernelRank`
+- 所有测试和示例代码都没有使用 `HIPTENSOR_PLAN_PREFERENCE_KERNEL_RANK`
+
+#### 与 Kernel 实例的关系
+
+实际的 kernel 实例通过模板参数 `NumDimsM`, `NumDimsN`, `NumDimsK` 在编译时确定：
+
+```cpp
+// library/src/contraction/contraction_meta_traits.hpp:40-42
+#define MaxNumDimsM 6
+#define MaxNumDimsN 6
+#define MaxNumDimsK 6
+```
+
+每个具体的 kernel 实例（如 `device_contraction_bilinear_m6_n6_k6_xdl_c_shuffle_*`）都有固定的 M/N/K 维度配置。
+
+Kernel 选择时使用的维度信息来自 `ContractionSolutionParams`：
+
+```cpp
+// library/src/contraction/contraction_solution_params.hpp:46-48
+virtual int32_t dimsM() const = 0;
+virtual int32_t dimsN() const = 0;
+virtual int32_t dimsK() const = 0;
+```
+
+#### 设计问题：为什么只有一个字段？
+
+**理论上应该有三个字段来分别控制 M/N/K 维度偏好**，但当前只有一个 `mKernelRank`。
+
+**可能的原因**：
+
+1. **预留但未完成的功能** - 这是一个预留的 API 接口，实现尚未完成
+2. **预留接口兼容性** - 可能是为了与 cuTENSOR 兼容而预留
+
+**可能的完整设计（未实现）**：
+
+```cpp
+// 理论上应该有的设计：
+struct hiptensorPlanPreference
+{
+    // ... 其他字段 ...
+    int32_t mKernelRankM;  // M 维度数偏好
+    int32_t mKernelRankN;  // N 维度数偏好
+    int32_t mKernelRankK;  // K 维度数偏好
+    // ... 其他字段 ...
+};
+```
+
+#### 总结
+
+```
+当前状态：
+┌─────────────────────────────────────────┐
+│ mKernelRank = 0 (默认值，从未被使用)     │
+│ Kernel 选择依据：ContractionSolutionParams │
+│                  的 dimsM/N/K() 方法      │
+└─────────────────────────────────────────┘
+
+可能的完整设计（未实现）：
+┌─────────────────────────────────────────┐
+│ mKernelRankM - 指定偏好 M 维度数          │
+│ mKernelRankN - 指定偏好 N 维度数          │
+│ mKernelRankK - 指定偏好 K 维度数          │
+│ → 用于过滤/优先选择特定 rank 的 kernel    │
+└─────────────────────────────────────────┘
+```
+
+**结论**：`mKernelRank` 是 `hiptensorPlanPreference` 的一个预留字段，用于指定张量操作的维度数偏好。它通过 `HIPTENSOR_PLAN_PREFERENCE_KERNEL_RANK` 枚举值设置，但目前在代码中主要是预留接口，尚未在实际的 kernel 选择算法中使用。正确的实现应该有三个字段分别对应 M、N、K 维度。
+
+### 8.7.8 mAutotuneMode 字段深度分析
+
+`mAutotuneMode` 控制是否在**真实运行时**继续优化内核选择。
+
+#### 枚举定义
+
+```cpp
+// library/include/hiptensor/hiptensor_types.h:233-237
+typedef enum
+{
+    HIPTENSOR_AUTOTUNE_MODE_NONE        = 0,  // 禁用自动调优
+    HIPTENSOR_AUTOTUNE_MODE_INCREMENTAL = 1,  // 增量式自动调优
+} hiptensorAutotuneMode_t;
+```
+
+#### 两种模式对比
+
+| 模式 | 行为 | 适用场景 |
+|------|------|---------|
+| **NONE** | 信任创建 Plan 时的选择结果 | 通用场景（推荐） |
+| **INCREMENTAL** | 前 N 次真实运行中探索不同内核 | 追求极致性能 |
+
+#### INCREMENTAL 模式工作原理
+
+```
+假设 mIncrementalCount = 5, mCandidates.size() = 10
+
+第 1 次执行: callCount=0 → 使用 Candidates[0], 记录时间
+第 2 次执行: callCount=1 → 使用 Candidates[1], 记录时间
+第 3 次执行: callCount=2 → 使用 Candidates[2], 记录时间
+第 4 次执行: callCount=3 → 使用 Candidates[3], 记录时间
+第 5 次执行: callCount=4 → 使用 Candidates[4], 记录时间
+            callCount >= mIncrementalCount
+            → 将 bestSolution 存入 PlanCache
+
+后续执行: PlanCache 命中 → 直接使用缓存内核
+```
+
+#### 关键代码
+
+```cpp
+// library/src/include/plancache_autotune.hpp
+
+// setAutotune() - 选择本轮要执行的内核
+void setAutotune(...)
+{
+    auto Uid = planCache->querySolutionUid(plan->mOpDesc);
+
+    if (Uid > 0)
+    {
+        // PlanCache 命中，直接使用缓存
+        plan->mSolution = findSolutionByUid(candidates, Uid);
+    }
+    else if (mAutotuneMode == INCREMENTAL)
+    {
+        // PlanCache 未命中，按顺序探索候选内核
+        if (callCount < mIncrementalCount && callCount < mCandidates.size())
+            plan->mSolution = mCandidates[callCount];
+    }
+}
+
+// saveAutotune() - 保存本轮执行结果
+void saveAutotune(float time, ...)
+{
+    if (mAutotuneMode == INCREMENTAL)
+    {
+        // 记录最优结果
+        if (time < minTime)
+            mBestSolution = {time, currentSolution};
+
+        mCallCount++;
+
+        // 达到探索次数，存入缓存
+        if (mCallCount >= mIncrementalCount)
+        {
+            planCache->addCacheLine(hashID, mBestSolution->uid());
+            mCallCount = 0;  // 重置状态
+        }
+    }
+}
+```
+
+### 8.7.9 bruteForceModel 测试机制详解
+
+`bruteForceModel` 在**创建 Plan 时**执行，用于测试并选择最优内核。
+
+#### "假数据"的真相
+
+```cpp
+// library/src/contraction/contraction_selection.cpp
+
+// 1. 分配测试内存（未初始化！）
+void *A_d, *B_d, *D_d, *E_d;
+hipMalloc(&A_d, sizeA);  // 垃圾数据
+hipMalloc(&B_d, sizeB);  // 垃圾数据
+hipMalloc(&D_d, sizeD);  // 垃圾数据
+hipMalloc(&E_d, sizeE);  // 垃圾数据
+
+// 2. 只有标量参数有具体值
+ScalarData alpha = ScalarData(computeType, 1.02);
+ScalarData beta  = ScalarData(computeType, 1.03);
+
+// 3. 遍历所有候选内核并计时
+for (auto* solution : candidates)
+{
+    auto [errorCode, time] = (*solution)(&alpha, A_d, B_d, &beta, D_d, E_d, ...);
+    // 计算性能指标 TFLOPS
+    if (tflops > best_tflops)
+        bestSolution = solution;
+}
+```
+
+| 数据 | 来源 | 内容 |
+|------|------|------|
+| **A_d, B_d** | hipMalloc，未初始化 | GPU 内存中的随机数据 |
+| **D_d, E_d** | hipMalloc，未初始化 | GPU 内存中的随机数据 |
+| **alpha, beta** | 代码设置 | 1.02, 1.03（避免特殊值） |
+
+#### 为什么"假数据"也能测试性能？
+
+**性能测试关注执行时间，不关心计算结果正确性**
+
+```
+影响性能的因素（与数据值无关）：
+├── 内存访问模式（连续/非连续）
+├── 计算量（FLOPS）
+├── 内存带宽利用率
+└── GPU 资源占用（寄存器、共享内存）
+
+不影响性能的因素：
+├── 输入数据的具体值
+└── 输出结果是否正确
+```
+
+#### 为什么 alpha/beta 用 1.02, 1.03？
+
+```cpp
+alpha = 0  → C = 0 * (A*B) + beta*C（跳过矩阵乘法！）
+alpha = 1  → 可能触发编译器优化（1*x = x）
+beta = 0   → C = alpha * A * B（跳过加法！）
+
+// 1.02, 1.03 这种"普通值"确保所有计算步骤都会执行
+```
+
+### 8.7.10 内核选择完整流程
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    hiptensorCreatePlan() 流程                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. 检查 PlanCache 是否命中                                                  │
+│     if (cacheMode == PEDANTIC && planCache->query(desc) 命中)               │
+│         → 直接使用缓存内核，跳过以下所有步骤                                  │
+│                                                                             │
+│  2. PlanCache 未命中，执行内核选择算法                                        │
+│     if (algo == DEFAULT || DEFAULT_PATIENT)                                 │
+│         → bruteForceModel(): 使用假数据测试所有候选，选出最快的               │
+│     else if (algo == ACTOR_CRITIC)                                          │
+│         → actorCriticModel(): 使用预训练模型直接预测                          │
+│                                                                             │
+│  3. 保存结果                                                                 │
+│     pref->mSolution = winner              // 选中的内核                      │
+│     pref->mCandidates = all_candidates    // 用于 INCREMENTAL 探索          │
+│                                                                             │
+│  4. 如果 autotuneMode == NONE                                                │
+│     → 将 pref->mSolution 存入 PlanCache                                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    hiptensorContract() 执行流程                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  setAutotune():                                                              │
+│     if (PlanCache 命中) → 使用缓存内核（跳过 autotune）                       │
+│     elif (INCREMENTAL && callCount < mIncrementalCount)                      │
+│         → 使用 mCandidates[callCount]                                        │
+│                                                                             │
+│  [执行内核，使用用户的真实数据，返回执行时间]                                  │
+│                                                                             │
+│  saveAutotune(time):                                                         │
+│     if (INCREMENTAL)                                                         │
+│         → 记录性能，更新 bestSolution                                         │
+│         → callCount++                                                        │
+│         → if (callCount >= mIncrementalCount)                                │
+│             → 将 bestSolution 存入 PlanCache                                  │
+│             → 重置状态，下一轮重新开始                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 8.7.11 PlanPreference 推荐配置汇总
+
+| 场景 | algo | autotuneMode | mIncrementalCount | cacheMode | 说明 |
+|------|------|--------------|-------------------|-----------|------|
+| **生产环境（推荐）** | DEFAULT | NONE | - | PEDANTIC | 首次创建 Plan 耗时，后续快速 |
+| **追求极致性能** | DEFAULT | INCREMENTAL | 5-10 | PEDANTIC | 前 N 次真实运行优化，后续复用 |
+| **快速启动** | ACTOR_CRITIC | NONE | - | PEDANTIC | 启动快，但可能不是最优 |
+| **调试/测试** | DEFAULT | NONE | - | NONE | 每次重新选择 |
+
+```
+关键协作关系：
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  PlanCache 命中 → 直接使用缓存，跳过 algo 和 autotune                         │
+│  PlanCache 未命中 → algo 选择 → autotune 优化 → 存入 PlanCache               │
+│                                                                             │
+│  bruteForceModel (创建 Plan 时):                                             │
+│    - 使用假数据（未初始化内存 + 1.02/1.03 标量）                              │
+│    - 目标：快速筛选候选内核                                                   │
+│                                                                             │
+│  INCREMENTAL (真实运行时):                                                    │
+│    - 使用用户的真实数据                                                       │
+│    - 目标：在真实场景中精细选择最优内核                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
 ### 8.8 hiptensorPlan_t 结构详解
 
 **Plan** 是执行计划，包含操作描述符和选中的最优内核。
@@ -2181,5 +2812,468 @@ hiptensorContract(handle, plan, &alpha, d_A, d_B, &beta,
 
 ---
 
+## 17. hipTensor 内核与 JIT 深度分析
+
+### 17.1 内核存储机制
+
+经过对 hipTensor 源码的深入分析，发现其内核管理机制如下：
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    hipTensor 内核存储位置                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  编译时（Build Time）:                                                   │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  CK 模板 → 实例化多个内核变体 → 编译成机器码 → 打包进 .so         │   │
+│  │                                                                 │   │
+│  │  例如 Contraction 内核变体：                                      │   │
+│  │  - FP32 + 列主序 + 大块策略 (BlockM=128, BlockN=128, BlockK=8)             │   │
+│  │  - FP32 + 行主序 + 小块策略 (BlockM=64, BlockN=64, BlockK=16)              │   │
+│  │  - FP16 + 列主序 + 大块策略                                       │   │
+│  │  - ... 数十种组合                                                   │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  运行时（Runtime）:                                                       │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  GetInstances() → 从 .so 中加载预编译的内核                        │   │
+│  │  ↓                                                              │   │
+│  │  按条件过滤（数据类型、操作符、问题规模）                             │   │
+│  │  ↓                                                              │   │
+│  │  性能测试选出最优内核                                              │   │
+│  │  ↓                                                              │   │
+│  │  PlanCache 缓存选择结果（hash → uid）                              │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 17.2 JitMode 源码分析
+
+**枚举定义**（`hiptensor_types.h`）：
+
+```c
+typedef enum {
+    HIPTENSOR_JIT_MODE_NONE    = 0,  // 不使用 JIT
+    HIPTENSOR_JIT_MODE_DEFAULT = 1,  // 使用 JIT（默认模式）
+} hiptensorJitMode_t;
+```
+
+**实际使用情况**（`hiptensor.cpp`）：
+
+```c
+hiptensorStatus_t hiptensorCreatePlanPreference(...) {
+    *pref = new hiptensorPlanPreference();
+    // ...
+    (*pref)->mJit = jitMode;  // ← 只是存储，从未被使用！
+    // ...
+}
+```
+
+**搜索整个源码树**，没有发现：
+- `mJit` 的实际使用（判断或分支逻辑）
+- hipRTC 调用
+- 运行时编译相关代码
+
+### 17.3 KernelCache 接口分析
+
+```c
+// hiptensor.cpp - 直接返回成功，空实现
+hiptensorStatus_t hiptensorWriteKernelCacheToFile(...) {
+    return HIPTENSOR_STATUS_SUCCESS;  // 什么都没做
+}
+
+hiptensorStatus_t hiptensorReadKernelCacheFromFile(...) {
+    return HIPTENSOR_STATUS_SUCCESS;  // 什么都没做
+}
+```
+
+### 17.4 结论汇总
+
+| 功能 | hipTensor 状态 | 说明 |
+|------|----------------|------|
+| 预编译内核 | ✅ 完整实现 | 所有内核在编译时生成，存储在 .so 中 |
+| GetInstances() | ✅ 完整实现 | 从预编译库中获取内核实例 |
+| PlanCache | ✅ 完整实现 | 缓存选择结果（hash → uid） |
+| **JitMode** | ❌ **未实现** | 接口存在，逻辑缺失 |
+| **KernelCache 文件 I/O** | ❌ **空实现** | 接口存在，返回 SUCCESS |
+| **运行时编译** | ❌ **不存在** | 无 hipRTC 调用 |
+
+### 17.5 关键发现
+
+**hipTensor 的 JIT 相关接口是"有接口无实现"的状态**：
+
+1. **API 兼容性**：与 cuTENSOR 保持接口一致
+2. **预留扩展**：为未来可能的功能预留
+3. **当前状态**：所有内核都是预编译（AOT）的
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    hipTensor 内核管理真相                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  用户以为：                          实际情况：                           │
+│  ┌─────────────────────────┐      ┌─────────────────────────────────┐  │
+│  │ JitMode = DEFAULT       │  →  │ 所有内核都是预编译的             │  │
+│  │ → 运行时 JIT 编译内核    │      │ → 从 .so 中加载                  │  │
+│  │ → 针对问题优化           │      │ → 选择最合适的预编译内核          │  │
+│  └─────────────────────────┘      └─────────────────────────────────┘  │
+│                                                                         │
+│  JitMode 参数被存储但从未被使用                                         │
+│  KernelCache 接口存在但实现为空                                         │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 附录A：Elementwise Binary vs Trinary 详细区别
+
+> 本章节基于 hiptensor 源码分析，详细说明 Elementwise Binary 和 Trinary 的区别。
+
+### A.1 数学公式
+
+| 类型 | 公式 | 输入张量数 |
+|------|------|-----------|
+| **Binary** | `D = opAC(α·opA(A), γ·opC(C))` | 2 (A, C) |
+| **Trinary** | `D = opABC(opAB(α·opA(A), β·opB(B)), γ·opC(C))` | 3 (A, B, C) |
+
+### A.2 参数对比表
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     Elementwise Binary vs Trinary                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  BINARY: D = opAC(α·opA(A), γ·opC(C))                                       │
+│  ─────────────────────────────────────                                      │
+│  输入张量: A, C                                                              │
+│  输出张量: D                                                                 │
+│  标量系数: α, γ                                                              │
+│  操作符: opA (一元), opC (一元), opAC (二元)                                  │
+│  FLOPs: ~5 × problem_size                                                   │
+│  数据量: 3 × problem_size × element_size (A + C + D)                        │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  TRINARY: D = opABC(opAB(α·opA(A), β·opB(B)), γ·opC(C))                     │
+│  ───────────────────────────────────────────────────────────────────        │
+│  输入张量: A, B, C                                                           │
+│  输出张量: D                                                                 │
+│  标量系数: α, β, γ                                                           │
+│  操作符: opA (一元), opB (一元), opC (一元), opAB (二元), opABC (二元)        │
+│  FLOPs: ~8 × problem_size                                                   │
+│  数据量: 4 × problem_size × element_size (A + B + C + D)                    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### A.3 计算流程可视化
+
+```
+Binary 计算流程:
+┌─────────┐    ┌─────────┐
+│    A    │    │    C    │
+└────┬────┘    └────┬────┘
+     │              │
+     ▼              ▼
+┌─────────┐    ┌─────────┐
+│  opA    │    │  opC    │       一元操作 (如 IDENTITY, SQRT, RELU)
+└────┬────┘    └────┬────┘
+     │              │
+     ▼              ▼
+┌─────────┐    ┌─────────┐
+│  ×α     │    │  ×γ     │       标量缩放
+└────┬────┘    └────┬────┘
+     │              │
+     └──────┬───────┘
+            │
+            ▼
+      ┌───────────┐
+      │   opAC    │              二元操作 (如 ADD, MUL, MAX, MIN)
+      └─────┬─────┘
+            │
+            ▼
+      ┌───────────┐
+      │     D     │
+      └───────────┘
+
+
+Trinary 计算流程:
+┌─────────┐    ┌─────────┐    ┌─────────┐
+│    A    │    │    B    │    │    C    │
+└────┬────┘    └────┬────┘    └────┬────┘
+     │              │              │
+     ▼              ▼              ▼
+┌─────────┐    ┌─────────┐    ┌─────────┐
+│  opA    │    │  opB    │    │  opC    │    一元操作
+└────┬────┘    └────┬────┘    └────┬────┘
+     │              │              │
+     ▼              ▼              ▼
+┌─────────┐    ┌─────────┐    ┌─────────┐
+│  ×α     │    │  ×β     │    │  ×γ     │    标量缩放
+└────┬────┘    └────┬────┘    └────┬────┘
+     │              │              │
+     └──────┬───────┘              │
+            │                      │
+            ▼                      │
+      ┌───────────┐                │
+      │   opAB    │                │         第一阶段二元操作
+      └─────┬─────┘                │
+            │                      │
+            └──────────┬───────────┘
+                       │
+                       ▼
+                 ┌───────────┐
+                 │   opABC   │              第二阶段二元操作
+                 └─────┬─────┘
+                       │
+                       ▼
+                 ┌───────────┐
+                 │     D     │
+                 └───────────┘
+```
+
+### A.4 API 函数签名对比
+
+```cpp
+// Binary - 2个输入张量, 2个标量, 1个二元操作符
+hiptensorStatus_t hiptensorElementwiseBinaryExecute(
+    const hiptensorHandle_t handle,
+    const hiptensorPlan_t   plan,
+    const void*             alpha,    // A 的缩放系数
+    const void*             A,        // 输入张量 A
+    const void*             gamma,    // C 的缩放系数
+    const void*             C,        // 输入张量 C
+    void*                   D,        // 输出张量 D
+    hipStream_t             stream);
+
+// Trinary - 3个输入张量, 3个标量, 2个二元操作符
+hiptensorStatus_t hiptensorElementwiseTrinaryExecute(
+    const hiptensorHandle_t handle,
+    const hiptensorPlan_t   plan,
+    const void*             alpha,    // A 的缩放系数
+    const void*             A,        // 输入张量 A
+    const void*             beta,     // B 的缩放系数  ← Binary 没有
+    const void*             B,        // 输入张量 B    ← Binary 没有
+    const void*             gamma,    // C 的缩放系数
+    const void*             C,        // 输入张量 C
+    void*                   D,        // 输出张量 D
+    hipStream_t             stream);
+```
+
+### A.5 操作描述符差异
+
+```cpp
+// Binary 操作描述符字段
+struct BinaryOpDesc {
+    TensorDescriptor descA, descC, descD;       // 3个张量描述符
+    int32_t* modeA, modeC, modeD;               // 3个模式数组
+    Operator opA, opC, opAC;                    // 1个二元 + 2个一元操作符
+};
+
+// Trinary 操作描述符字段
+struct TrinaryOpDesc {
+    TensorDescriptor descA, descB, descC, descD;  // 4个张量描述符 (多了 descB)
+    int32_t* modeA, modeB, modeC, modeD;          // 4个模式数组 (多了 modeB)
+    Operator opA, opB, opC, opAB, opABC;          // 2个二元 + 3个一元操作符
+};
+```
+
+### A.6 hiptensor 源码中的查询参数对比
+
+```cpp
+// Binary 查询 - hiptensor_elementwise_binary.cpp:158-166
+solutions = instances->query(
+    {alphaF, gammaF},                              // 2个标量
+    descA->mLengths,                               // A 的形状
+    {descA->mType, descC->mType},                  // 2个输入类型
+    {descD->mType},                                // 1个输出类型
+    {{modeA}, {modeC}},                            // 2个输入模式
+    {{modeD}},                                     // 1个输出模式
+    {opAC, opA, opC},                              // 1个二元 + 2个一元操作符
+    ExecutionSpace::DEVICE);
+
+// Trinary 查询 - hiptensor_elementwise_trinary.cpp:175-185
+solutions = instances->query(
+    {alphaF, betaF, gammaF},                       // 3个标量
+    descA->mLengths,                               // A 的形状
+    {descA->mType, descB->mType, descC->mType},    // 3个输入类型
+    {descD->mType},                                // 1个输出类型
+    {{modeA}, {modeB}, {modeC}},                   // 3个输入模式
+    {{modeD}},                                     // 1个输出模式
+    {opABC, opAB, opA, opB, opC},                  // 2个二元 + 3个一元操作符
+    ExecutionSpace::DEVICE);
+```
+
+### A.7 FLOPs 和内存带宽计算
+
+```cpp
+// Binary: ~5 ops/element - hiptensor_elementwise_binary.cpp:205
+// 组成: 2次缩放(×α, ×γ) + 1次二元操作 + 开销
+auto flops = std::size_t(5) * pSolution->problemSize();
+
+// Trinary: ~8 ops/element - hiptensor_elementwise_trinary.cpp:225
+// 组成: 3次缩放(×α, ×β, ×γ) + 2次二元操作 + 开销
+auto flops = std::size_t(8) * pSolution->problemSize();
+
+// Binary 内存传输量
+auto bytes = (sizeof(A) + sizeof(C) + sizeof(D)) * problemSize();  // 3个张量
+
+// Trinary 内存传输量
+auto bytes = (sizeof(A) + sizeof(B) + sizeof(C) + sizeof(D)) * problemSize();  // 4个张量
+```
+
+### A.8 典型使用场景
+
+| 类型 | 典型场景 | 示例 |
+|------|---------|------|
+| **Binary** | 两张量运算 | `D = A + C`, `D = A * C`, `D = max(A, C)` |
+| **Trinary** | 融合运算 | `D = (A * B) + C` (融合乘加), `D = where(A > B, C, 0)` |
+
+### A.9 Trinary 的性能优势
+
+**为什么使用 Trinary？** 将两个连续的 Binary 操作融合为一次 Trinary 操作，减少全局内存读写。
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    内存访问对比：两次 Binary vs 一次 Trinary                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  方案1: 两次 Binary 操作                                                    │
+│  ─────────────────────                                                      │
+│  D1 = A * B        读: A, B    写: D1     → 3次内存访问                     │
+│  D  = D1 + C       读: D1, C   写: D     → 3次内存访问                     │
+│  ───────────────────────────────────────────────────────────────────────    │
+│  总计: 6次内存访问                                                          │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  方案2: 一次 Trinary 操作                                                   │
+│  ─────────────────────                                                      │
+│  D = (A * B) + C   读: A, B, C  写: D    → 4次内存访问                     │
+│  ───────────────────────────────────────────────────────────────────────    │
+│  总计: 4次内存访问                                                          │
+│                                                                             │
+│  性能提升: 节省 33% 内存带宽                                                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### A.10 hiptensor 中的实例注册结构
+
+```cpp
+// hiptensor 按【维度 × 数据类型】分别注册 Binary 和 Trinary 解决方案
+
+class ElementwiseSolutionInstances {
+    // Binary 解决方案实例
+    void ElementwiseBinarySolution2DFloatInstances();   // 2D FP32
+    void ElementwiseBinarySolution2DHalfInstances();    // 2D FP16
+    void ElementwiseBinarySolution3DFloatInstances();   // 3D FP32
+    void ElementwiseBinarySolution3DHalfInstances();    // 3D FP16
+    void ElementwiseBinarySolution4DFloatInstances();   // 4D FP32
+    void ElementwiseBinarySolution4DHalfInstances();    // 4D FP16
+    void ElementwiseBinarySolution5DFloatInstances();   // 5D FP32
+    void ElementwiseBinarySolution5DHalfInstances();    // 5D FP16
+    void ElementwiseBinarySolution6DFloatInstances();   // 6D FP32
+    void ElementwiseBinarySolution6DHalfInstances();    // 6D FP16
+    void ElementwiseBinarySolution2DDoubleInstances();  // 2D FP64
+    void ElementwiseBinarySolution3DDoubleInstances();  // 3D FP64
+    // ... 4D, 5D, 6D Double ...
+
+    // Trinary 解决方案实例
+    void ElementwiseTrinarySolution2DFloatInstances();  // 2D FP32
+    void ElementwiseTrinarySolution2DHalfInstances();   // 2D FP16
+    void ElementwiseTrinarySolution3DFloatInstances();  // 3D FP32
+    void ElementwiseTrinarySolution3DHalfInstances();   // 3D FP16
+    void ElementwiseTrinarySolution4DFloatInstances();  // 4D FP32
+    void ElementwiseTrinarySolution4DHalfInstances();   // 4D FP16
+    void ElementwiseTrinarySolution5DFloatInstances();  // 5D FP32
+    void ElementwiseTrinarySolution5DHalfInstances();   // 5D FP16
+    void ElementwiseTrinarySolution6DFloatInstances();  // 6D FP32
+    void ElementwiseTrinarySolution6DHalfInstances();   // 6D FP16
+    void ElementwiseTrinarySolution2DDoubleInstances(); // 2D FP64
+    void ElementwiseTrinarySolution3DDoubleInstances(); // 3D FP64
+    // ... 4D, 5D, 6D Double ...
+};
+```
+
+### A.11 元素级操作符支持情况
+
+| 操作符 | Binary (opAC) | Trinary (opAB/opABC) | 说明 |
+|--------|---------------|---------------------|------|
+| `HIPTENSOR_OP_ADD` | ✅ | ✅ | 加法 |
+| `HIPTENSOR_OP_MUL` | ✅ | ✅ | 乘法 |
+| `HIPTENSOR_OP_MAX` | ✅ | ✅ | 最大值 |
+| `HIPTENSOR_OP_MIN` | ✅ | ✅ | 最小值 |
+| `HIPTENSOR_OP_IDENTITY` | ✅ (opA/opC) | ✅ (opA/opB/opC) | 恒等（一元） |
+
+### A.12 数据类型支持矩阵
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                         Binary 数据类型支持                                │
+├────────────────────────────────────────────────────────────────────────────┤
+│  {typeA, typeC, typeScalar}                                               │
+│  ─────────────────────────────                                            │
+│  {HIPTENSOR_R_16F, HIPTENSOR_R_16F, HIPTENSOR_R_16F}  ✅                 │
+│  {HIPTENSOR_R_16F, HIPTENSOR_R_16F, HIPTENSOR_R_32F}  ✅                 │
+│  {HIPTENSOR_R_16BF, HIPTENSOR_R_16BF, HIPTENSOR_R_16BF} ✅                │
+│  {HIPTENSOR_R_16BF, HIPTENSOR_R_16BF, HIPTENSOR_R_32F} ✅                 │
+│  {HIPTENSOR_R_32F, HIPTENSOR_R_32F, HIPTENSOR_R_32F}  ✅                 │
+│  {HIPTENSOR_R_64F, HIPTENSOR_R_64F, HIPTENSOR_R_64F}  ✅                 │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│                         Trinary 数据类型支持                               │
+├────────────────────────────────────────────────────────────────────────────┤
+│  {typeA, typeB, typeC, typeScalar}                                        │
+│  ─────────────────────────────────────────                                │
+│  {HIPTENSOR_R_16F, HIPTENSOR_R_16F, HIPTENSOR_R_16F, HIPTENSOR_R_16F} ✅  │
+│  {HIPTENSOR_R_32F, HIPTENSOR_R_32F, HIPTENSOR_R_32F, HIPTENSOR_R_32F} ✅  │
+│  {HIPTENSOR_R_64F, HIPTENSOR_R_64F, HIPTENSOR_R_64F, HIPTENSOR_R_64F} ✅  │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### A.13 ops-tensor 实现建议
+
+基于 hiptensor 的实现分析，ops-tensor 的 Elementwise Binary/Trinary 框架应该：
+
+1. **共享基类 Solution**：Binary 和 Trinary 共用 `ElementwiseSolution` 基类
+2. **分开的实例注册**：按维度(2D-6D) × 数据类型(FP16/FP32) 分别注册
+3. **统一的查询接口**：通过输入张量数量区分 Binary(2个) / Trinary(3个)
+4. **分开的 Execute 函数**：`acltensorElementwiseBinaryExecute` 和 `acltensorElementwiseTrinaryExecute`
+
+```cpp
+// 建议的 Solution 基类设计
+class ElementwiseSolution {
+public:
+    virtual ~ElementwiseSolution() = default;
+
+    // 统一的初始化接口
+    virtual bool initArgs(
+        std::vector<float> const& scalarValues,      // Binary: 2个, Trinary: 3个
+        std::vector<std::vector<std::size_t>> const& inLengthsArray,
+        std::vector<std::vector<std::size_t>> const& inStridesArray,
+        std::vector<std::vector<int32_t>> const& inModesArray,
+        std::vector<std::vector<std::size_t>> const& outLengthsArray,
+        std::vector<std::vector<std::size_t>> const& outStridesArray,
+        std::vector<std::vector<int32_t>> const& outModesArray,
+        std::vector<acltensorOperator_t> const& operators,  // Binary: 3个, Trinary: 5个
+        std::vector<const void*> const& inBuffers,         // Binary: 2个, Trinary: 3个
+        std::vector<void*> const& outBuffers) = 0;
+
+    // 执行
+    virtual float operator()(StreamConfig const& config) = 0;
+
+    // 属性
+    virtual uint64_t uid() const = 0;
+    virtual size_t problemSize() const = 0;
+    virtual const char* kernelName() const = 0;
+};
+```
+
+---
+
 **文档版本**：基于 ROCm hipTensor (rocm-libraries develop 分支)
-**最后更新**：2026-03-13
+**最后更新**：2026-03-14
