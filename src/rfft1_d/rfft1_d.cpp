@@ -19,8 +19,6 @@
 
 #include "arch35/rfft1_d_tilingdata.h"
 #include "arch35/rfft1_d_fast.h"
-// #include "arch35/rfft1_d_bluestein.h"
-// #include "arch35/rfft1_d_colley_tukey.h"
 #include "platform/platform_info.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "log/log.h"
@@ -308,39 +306,6 @@ extern "C" __global__ __aicore__ void rfft1_d(GM_ADDR x, GM_ADDR dft, GM_ADDR y,
 
         op.Init(x, dft, y);
         op.Process();
-    } else if (!tilingData.isBluestein) // Cooley-Tukey algorithm for long seqs
-    {
-        // KernelRfftCooleyTukey op(&tilingData);
-
-        // auto t1 =
-        //     PrepareTiling1(tilingData.length / tilingData.factors[0], tilingData.factors[0] * 2, tilingData.factors[0]);
-        // auto t2 = PrepareTiling2(tilingData.factors[1], tilingData.factors[0] * 2, tilingData.factors[1]);
-        // auto t3 = PrepareTiling3(
-        //     tilingData.factors[2] / 2, (tilingData.length / tilingData.factors[2]) * 2, tilingData.factors[2]);
-
-        // op.Init(x, dft, y, userWorkspace);
-        // REGIST_MATMUL_OBJ(
-        //     &op.pipe, GetSysWorkSpacePtr(), op.matmulObj1, (void*)&t1, op.matmulObj2, (void*)&t2, op.matmulObj3,
-        //     (void*)&t3);
-
-        // op.Process();
-    } else // Bluestein algorithm for other cases
-    {
-        // KernelRfftBluestein op(&tilingData);
-
-        // auto t1 = PrepareTiling4(
-        //     tilingData.lengthPad / tilingData.factors[0], tilingData.factors[0] * 2, 2 * tilingData.factors[0]);
-        // auto t2 = PrepareTiling5(tilingData.factors[1], tilingData.factors[0] * 2, tilingData.factors[1]);
-        // auto t3 = PrepareTiling6(
-        //     tilingData.factors[2], (tilingData.lengthPad / tilingData.factors[2]) * 2, tilingData.factors[2]);
-        // auto t4 = PrepareTiling7(tilingData.length, 2, 1);
-
-        // op.Init(x, dft, y, userWorkspace);
-        // REGIST_MATMUL_OBJ(
-        //     &op.ct.pipe, GetSysWorkSpacePtr(), op.ct.matmulObj1, (void*)&t1, op.ct.matmulObj2, (void*)&t2,
-        //     op.ct.matmulObj3, (void*)&t3, op.ct.matmulObj4, (void*)&t4);
-
-        // op.Process();
     }
     return;
 }

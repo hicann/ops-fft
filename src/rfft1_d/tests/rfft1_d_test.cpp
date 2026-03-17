@@ -11,43 +11,42 @@
 
 #include "cann_ops_fft.h"
 #include "rfft1_d_test.h"
+#include "utils/rfft_expected_loader.h"
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <numeric>
+#include <cstdlib>
 
-void test_basic_rfft1_d(aclrtStream stream, OpsFftTest::TestStats& stats) {
-    TEST_CASE_BEGIN("test_basic_rfft1_d");
+void test_rfft1_d_n8(aclrtStream stream, OpsFftTest::TestStats& stats) {
+    TEST_CASE_BEGIN("test_rfft1_d_n8");
 
     int64_t n = 8;  // 输入张量最后一维
     int64_t norm = 1;  // 归一化选项
-	uint32_t batches = 1;  // 输入张量除了最后一维的所有维度相乘
+    uint32_t batches = 1;  // 输入张量除了最后一维的所有维度相乘
 
-    std::vector<float> x = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
-    std::vector<float> y(n);
+    std::vector<float> x(n);
+    std::iota(x.begin(), x.end(), 1.0f);
+    std::vector<float> expected;
+    RfftExpected::generateExpectedData(x, n, batches, norm, expected);
 
-    std::vector<float> expected = {
-        36.0, 0.0, 
-        -4.0, 9.6569, 
-        -4.0, 4.0, 
-        -4.0, 1.6569, 
-        -4.0, 0.0
-        };
+    int64_t y_size = (n / 2 + 1) * 2;
+    std::vector<float> y(y_size);
 
-    // 3. 调用CANN算子库API（需要根据具体API名称修改）
     aclError result = aclfftRfft1D(x.data(), y.data(), n, norm, batches, stream);
 
     TEST_ASSERT(stats, result == ACL_SUCCESS, "return code failed");
-    TEST_ASSERT_ARRAY_NEAR(stats, y, expected, n, 1e-4f, "array mismatch");
+    TEST_ASSERT_ARRAY_NEAR(stats, y, expected, y_size, 1e-4f, "array mismatch");
 
-    TEST_CASE_PASS(stats, "test_basic_rfft1_d");
+    TEST_CASE_PASS(stats, "test_rfft1_d_n8");
 }
 
-// 导出函数
+// Export function
 namespace Rfft1DTest {
     void run_all_tests(aclrtStream stream, OpsFftTest::TestStats& stats) {
-        test_basic_rfft1_d(stream, stats);
+        test_rfft1_d_n8(stream, stats);
     }
 }
 
-// 自动注册到测试框架
+// Auto register to test framework
 REGISTER_OP_TEST(Rfft1D)
