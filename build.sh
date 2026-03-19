@@ -89,22 +89,22 @@ get_soc_version() {
     # 映射表：友好名称 -> CANN 期望的完整版本标识
     case "$soc_lower" in
         "ascend950")
-            echo "ascend950dt_9595"
+            echo "Ascend950"
             ;;
         "ascend910b"|"ascend910_b")
-            echo "ascend910b3"
+            echo "Ascend910B"
             ;;
         "ascend910_93")
-            echo "ascend910_93"
+            echo "Ascend910_93"
             ;;
         "ascend910")
-            echo "ascend910"
+            echo "Ascend910"
             ;;
         "ascend310p"|"ascend310_p")
-            echo "ascend310p"
+            echo "Ascend310P"
             ;;
         "ascend310b"|"ascend310_b")
-            echo "ascend310b"
+            echo "Ascend310B"
             ;;
         *)
             # 如果没有映射，直接使用小写名称
@@ -429,7 +429,7 @@ parse_arguments() {
             --soc=*)
                 # 提取 SoC 型号并标准化（支持小写输入）
                 SOC_INPUT="${1#*=}"
-                SOC_NAME=$(normalize_soc_name "${SOC_INPUT}")
+                SOC_NAME=$(get_soc_version "${SOC_INPUT}")
                 shift
                 ;;
             -j*)

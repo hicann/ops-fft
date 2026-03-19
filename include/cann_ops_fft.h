@@ -44,6 +44,9 @@ ACLFFT_API aclError acltensorAdd(float* x1, float* x2, float* y, int64_t n, void
 
 ACLFFT_API aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, uint32_t batches, void *stream);
 
+ACLFFT_API aclError aclFftR2C(aclrtStream stream, float* input_addr, float* output_addr,
+                  int64_t fft_n, int64_t batch_size, bool forward);
+
 #ifdef __cplusplus
 }
 #endif
