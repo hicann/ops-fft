@@ -1,0 +1,50 @@
+/**
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software; you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+
+/*!
+ * \file rfft1_d.h
+ * \brief rfft1_d 算子接口声明
+ */
+
+#ifndef RFFT1_D_H
+#define RFFT1_D_H
+
+#include <stdint.h>
+#include "acl/acl.h"
+
+/* 导出宏定义 */
+#if defined(_WIN32) || defined(__CYGWIN__)
+    #define ACLFFT_API __declspec(dllexport)
+#else
+    #define ACLFFT_API __attribute__((visibility("default")))
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @brief rfft1_d 算子接口 - 实数到复数的一维 FFT
+ *
+ * @param x 输入实数数组
+ * @param y 输出复数数组（实部和虚部交错存储）
+ * @param n FFT 长度
+ * @param norm 归一化模式（0=BACKWARD, 1=ORTHO, 2=FORWARD）
+ * @param batches 批次数
+ * @param stream ACL 流
+ * @return ACL 错误码
+ */
+ACLFFT_API aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, uint32_t batches, void *stream);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // RFFT1_D_H

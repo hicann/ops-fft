@@ -5,14 +5,14 @@
  */
 
 /**
- * @file rfft1_d_test.h
- * @brief Rfft1D算子测试函数声明
+ * @file rfft1_d_api_integration_test.h
+ * @brief R2C FFT API 集成测试函数声明
  */
 
 #pragma once
 
 #include "test_common.h"
 
-namespace Rfft1DTest {
+namespace Rfft1DApiIntegrationTest {
     void run_all_tests(aclrtStream stream, OpsFftTest::TestStats& stats);
 }

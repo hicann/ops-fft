@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #include <numeric>
 #include <vector>
 
+#include "rfft1_d.h"
 #include "arch35/rfft1_d_tilingdata.h"
 #include "arch35/rfft1_d_fast.h"
 #include "platform/platform_info.h"
@@ -349,6 +350,8 @@ extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, u
 
     // Call host-side launcher (must be implemented to actually launch kernel)
     rfft1_d<<<coreNum, nullptr, stream>>>((__gm__ uint8_t *)dev_x, (__gm__ uint8_t *)dev_dft, (__gm__ uint8_t *)dev_y, (__gm__ uint8_t *)workspace_ptr, tilingData);
+
+    CHECK_ACL(aclrtSynchronizeStream(stream));
 
     // Copy device output back to host
     CHECK_ACL(aclrtMemcpy(y, outputSize, dev_y, outputSize, ACL_MEMCPY_DEVICE_TO_HOST));

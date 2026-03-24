@@ -38,15 +38,98 @@ init_env()  # 发现算子
 # 3.1 编译测试（可选）
 option(BUILD_TESTING "Build tests" OFF)
 
-# 3.2 编译算子
+##############################################################################
+# 3.2 创建最终动态库（统一管理 API 层和算子层）
+##############################################################################
+
+# 创建占位源文件
+file(WRITE ${CMAKE_BINARY_DIR}/ops_fft_stub.cpp "// Stub file for ops_fft library")
+
+# 创建最终动态库目标
+add_library(${OPS_FFT} SHARED ${CMAKE_BINARY_DIR}/ops_fft_stub.cpp)
+
+# 设置库属性
+set_target_properties(${OPS_FFT} PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION 1
+    OUTPUT_NAME "cann_ops_fft"  # 生成 libcann_ops_fft.so
+)
+
+# 设置公共包含目录
+target_include_directories(${OPS_FFT} PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/lib
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/common
+    ${ASCEND_HOME_PATH}/pkg_inc/op_common/
+    ${ASCEND_HOME_PATH}/pkg_inc/base/
+    ${ASCEND_HOME_PATH}/pkg_inc/
+)
+
+# 设置库链接目录（目标属性，不影响其他目标）
+target_link_directories(${OPS_FFT} PUBLIC ${ASCEND_HOME_PATH}/lib64)
+
+# 链接 CANN 库
+target_link_libraries(${OPS_FFT} PUBLIC
+    tiling_api
+)
+
+# 设置编译选项
+target_compile_options(${OPS_FFT} PRIVATE
+    $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=${ASCEND_NPU_ARCH}>
+)
+
+##############################################################################
+# 3.3 编译 API 层（添加到最终动态库）
+##############################################################################
+
+add_subdirectory(lib)
+
+##############################################################################
+# 3.4 编译算子层（添加到最终动态库）
+##############################################################################
+
 add_subdirectory(src)
 
-# 3.3 编译测试
+##############################################################################
+# 3.5 统一设置所有源文件语言属性
+##############################################################################
+
+# 获取所有源文件
+get_target_property(ALL_SOURCES ${OPS_FFT} SOURCES)
+
+# 设置所有源文件语言为 ASC
+if(ALL_SOURCES)
+    set_source_files_properties(${ALL_SOURCES} PROPERTIES LANGUAGE ASC)
+    message(STATUS "Set ASC language for all sources")
+endif()
+
+##############################################################################
+# 3.6 安装规则
+##############################################################################
+
+# 安装最终动态库
+install(TARGETS ${OPS_FFT}
+    LIBRARY DESTINATION ${OPS_FFT_LIB_INSTALL_DIR}
+    RUNTIME DESTINATION bin
+)
+
+# 安装公共头文件（安装到 math_libs 子目录）
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/cann_ops_fft.h
+    DESTINATION ${OPS_FFT_INC_INSTALL_DIR}
+)
+
+##############################################################################
+# 3.7 编译测试
+##############################################################################
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
-# 3.4 打包配置
+##############################################################################
+# 3.8 打包配置
+##############################################################################
 option(ENABLE_PACKAGE "Enable package generation" OFF)
 if(ENABLE_PACKAGE)
     # 设置第三方库路径

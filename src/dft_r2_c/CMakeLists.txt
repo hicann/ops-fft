@@ -5,8 +5,8 @@
 ##############################################################################
 
 # 注册 dft_r2_c 算子（自动发现源文件）
-register_operator(
-    NAME dft_r2_c
-)
+# register_operator(
+#     NAME dft_r2_c
+# )
 
 # 不需要安装额外的头文件，对外接口在 cann_ops_fft.h 中

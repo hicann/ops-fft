@@ -5,48 +5,118 @@
  */
 
 /**
- * @file rfft1_d_test.cpp
- * @brief Rfft1D算子单元测试
+ * @file rfft1_d_api_integration_test.cpp
+ * @brief R2C FFT API 集成测试 - 测试 aclfftExecR2C 接口调用 rfft1_d 算子
  */
 
 #include "cann_ops_fft.h"
 #include "rfft1_d_test.h"
-#include "utils/rfft_expected_loader.h"
 #include <iostream>
 #include <vector>
 #include <cmath>
-#include <numeric>
-#include <cstdlib>
 
-void test_rfft1_d_n8(aclrtStream stream, OpsFftTest::TestStats& stats) {
-    TEST_CASE_BEGIN("test_rfft1_d_n8");
+void test_r2c_api_basic(aclrtStream stream, OpsFftTest::TestStats& stats) {
+    TEST_CASE_BEGIN("test_r2c_api_basic");
 
-    int64_t n = 8;  // 输入张量最后一维
-    int64_t norm = 1;  // 归一化选项
-    uint32_t batches = 1;  // 输入张量除了最后一维的所有维度相乘
+    // 测试参数
+    const int n = 8;
+    const int batch = 1;
 
-    std::vector<float> x(n);
-    std::iota(x.begin(), x.end(), 1.0f);
-    std::vector<float> expected;
-    RfftExpected::generateExpectedData(x, n, batches, norm, expected);
+    // 1. 创建 Plan
+    aclfftHandle plan;
+    aclfftResult res = aclfftPlan1d(&plan, n, ACLFFT_R2C, batch);
+    TEST_ASSERT(stats, res == ACLFFT_SUCCESS, "aclfftPlan1d failed");
 
-    int64_t y_size = (n / 2 + 1) * 2;
-    std::vector<float> y(y_size);
+    // 2. 准备输入数据
+    std::vector<float> input = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
 
-    aclError result = aclfftRfft1D(x.data(), y.data(), n, norm, batches, stream);
+    // 3. 准备输出数据
+    int output_size = (n / 2) + 1;
+    std::vector<aclfftComplex> output(output_size * batch);
 
-    TEST_ASSERT(stats, result == ACL_SUCCESS, "return code failed");
-    TEST_ASSERT_ARRAY_NEAR(stats, y, expected, y_size, 1e-4f, "array mismatch");
+    // 4. 调用 aclfftExecR2C（底层会处理内存拷贝）
+    res = aclfftExecR2C(plan, input.data(), output.data());
+    TEST_ASSERT(stats, res == ACLFFT_SUCCESS, "aclfftExecR2C failed");
 
-    TEST_CASE_PASS(stats, "test_rfft1_d_n8");
+    // 5. 验证结果（rfft1_d BACKWARD 模式）
+    std::vector<aclfftComplex> expected = {
+        {36.0, 0.0},
+        {-4.0, 9.6569},
+        {-4.0, 4.0},
+        {-4.0, 1.6569},
+        {-4.0, 0.0}
+    };
+
+    // 比较实部和虚部
+    std::vector<float> output_flat(output_size * 2);
+    std::vector<float> expected_flat(output_size * 2);
+    for (int i = 0; i < output_size; ++i) {
+        output_flat[i * 2] = output[i].x;
+        output_flat[i * 2 + 1] = output[i].y;
+        expected_flat[i * 2] = expected[i].x;
+        expected_flat[i * 2 + 1] = expected[i].y;
+    }
+
+    TEST_ASSERT_ARRAY_NEAR(stats, output_flat, expected_flat, output_size * 2, 1e-3f, "result mismatch");
+
+    // 6. 清理
+    aclfftDestroy(plan);
+
+    TEST_CASE_PASS(stats, "test_r2c_api_basic");
 }
 
-// Export function
-namespace Rfft1DTest {
+void test_r2c_api_impulse(aclrtStream stream, OpsFftTest::TestStats& stats) {
+    TEST_CASE_BEGIN("test_r2c_api_impulse");
+
+    // 测试参数
+    const int n = 8;
+    const int batch = 1;
+
+    // 1. 创建 Plan
+    aclfftHandle plan;
+    aclfftResult res = aclfftPlan1d(&plan, n, ACLFFT_R2C, batch);
+    TEST_ASSERT(stats, res == ACLFFT_SUCCESS, "aclfftPlan1d failed");
+
+    // 2. 准备输入数据（单位冲激）
+    std::vector<float> input(n, 0.0f);
+    input[0] = 1.0f;
+
+    // 3. 准备输出数据
+    int output_size = (n / 2) + 1;
+    std::vector<aclfftComplex> output(output_size);
+
+    // 4. 调用 aclfftExecR2C
+    res = aclfftExecR2C(plan, input.data(), output.data());
+    TEST_ASSERT(stats, res == ACLFFT_SUCCESS, "aclfftExecR2C failed");
+
+    // 5. 验证结果（所有分量都应该是 1.0）
+    std::vector<float> expected(output_size * 2, 1.0f);  // 实部=1.0, 虚部=0.0
+    expected[1] = 0.0f;  // 第一个虚部
+    for (int i = 1; i < output_size; ++i) {
+        expected[i * 2 + 1] = 0.0f;  // 其他虚部
+    }
+
+    std::vector<float> output_flat(output_size * 2);
+    for (int i = 0; i < output_size; ++i) {
+        output_flat[i * 2] = output[i].x;
+        output_flat[i * 2 + 1] = output[i].y;
+    }
+
+    TEST_ASSERT_ARRAY_NEAR(stats, output_flat, expected, output_size * 2, 0.01f, "impulse result mismatch");
+
+    // 6. 清理
+    aclfftDestroy(plan);
+
+    TEST_CASE_PASS(stats, "test_r2c_api_impulse");
+}
+
+// 导出函数
+namespace Rfft1DApiIntegrationTest {
     void run_all_tests(aclrtStream stream, OpsFftTest::TestStats& stats) {
-        test_rfft1_d_n8(stream, stats);
+        test_r2c_api_basic(stream, stats);
+        test_r2c_api_impulse(stream, stats);
     }
 }
 
-// Auto register to test framework
-REGISTER_OP_TEST(Rfft1D)
+// 自动注册到测试框架
+REGISTER_OP_TEST(Rfft1DApiIntegration)

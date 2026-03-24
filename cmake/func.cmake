@@ -69,11 +69,6 @@ function(register_operator)
         target_sources(${OPS_FFT} PRIVATE ${ALL_SOURCES})
     endif()
 
-    # 设置架构目录下源文件的语言属性为 ASC
-    if(ARCH_SOURCES)
-        message(STATUS "    Set ASC language for: ${ARCH_SOURCES}")
-    endif()
-
     # 添加算子特定的包含目录
     target_include_directories(${OPS_FFT} PRIVATE
         ${OP_SOURCE_DIR}
