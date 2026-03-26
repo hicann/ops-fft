@@ -17,7 +17,6 @@
 #include <numeric>
 #include <vector>
 
-#include "rfft1_d.h"
 #include "arch35/rfft1_d_tilingdata.h"
 #include "arch35/rfft1_d_fast.h"
 #include "platform/platform_info.h"
@@ -28,6 +27,7 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matrix/matmul/matmul.h"
 #include "lib/matmul_intf.h"
+#include "rfft1_d.h"
 
 static const uint32_t LAST_FACTOR = 64;
 static const uint32_t COMPLEX_PART = 2;
@@ -181,7 +181,6 @@ static void CalcDftSizes(Rfft1DTilingData &tiling, const uint32_t factors[], con
 
 static int SetTilingData(Rfft1DTilingData &tiling, uint32_t n, int32_t norm, uint32_t coreNum, uint32_t batches)
 {
-
     uint32_t factors[MAX_FACTORS_LEN] = {1, 1, 1};
     uint32_t prevRadices[MAX_FACTORS_LEN] = {1, 1, 1};
     uint32_t nextRadices[MAX_FACTORS_LEN] = {n / factors[0], 1, 1};

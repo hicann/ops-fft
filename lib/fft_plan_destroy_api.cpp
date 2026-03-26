@@ -8,10 +8,10 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include <cstdlib>
 #include "cann_ops_fft.h"
 #include "fft_handle_impl.h"
 #include "fft_error.h"
-#include <cstdlib>
 
 /**
  * @brief 销毁 FFT Plan
@@ -33,11 +33,7 @@ aclfftResult aclfftDestroy(aclfftHandle plan) {
         return ACLFFT_INVALID_PLAN;
     }
 
-    // TODO: 调用算子层清理函数（如果有算子状态）
-    if (impl->has_operator_state && impl->operator_state != nullptr) {
-        // 暂时不实现算子状态清理
-        // 后续会添加算子层调用
-    }
+    if (impl->has_operator_state && impl->operator_state != nullptr) {}
 
     // 标记为已销毁
     impl->is_destroyed = true;

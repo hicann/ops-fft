@@ -1,9 +1,10 @@
 # ops-fft
 
 ## 🔥 最新动态
-- [2026/03] 完成项目基础架构搭建，支持 Rfft1_d 算子实现和测试，支持一键编译、测试和打包。
-- [2026/03] 建立完整的测试框架，支持单元测试、超时控制和自动化测试统计。
-- [2026/03] 实现标准化的打包流程，生成 .run 安装包，支持 install/uninstall/upgrade 完整生命周期管理。
+- [2026/03] 实现完整的 Plan 管理机制，支持 Plan 创建、执行、销毁全生命周期
+- [2026/03] 新增 `dft_r2_c` 和 `rfft1_d` 算子，支持实数到复数的一维 FFT
+- [2026/03] 建立完整的测试框架，支持单元测试、自动化测试统计
+- [2026/03] 实现标准化的打包流程，生成 .run 安装包，支持 install/uninstall/upgrade 完整生命周期管理
 
 ## 🚀 概述
 
@@ -11,18 +12,17 @@ ops-fft 是 [CANN](https://hiascend.com/software/cann) （Compute Architecture f
 
 ### 主要特性
 
-- ✅ **模块化设计** - 支持动态添加算子模块，每个算子独立开发、编译和测试
+- ✅ **双层架构** - API 层提供易用接口，算子层实现高性能计算
+- ✅ **模块化设计** - 支持动态添加算子模块，每个算子独立开发和测试
 - ✅ **标准 CMake 构建** - 跨平台编译支持，统一的构建流程
-- ✅ **完整测试体系** - 基于自定义测试框架，支持自动化测试和超时控制
-- ✅ **便捷打包** - 一键生成 .run 安装包，支持 install/uninstall/upgrade
-- ✅ **版本管理** - 安装信息记录和版本追踪，支持升级管理
-- ✅ **轻量高效** - 简洁的架构设计，避免过度工程化
+- ✅ **完整测试体系** - 基于自定义测试框架，支持自动化测试
+- ✅ **便捷打包** - 一键生成 .run 安装包，支持完整生命周期管理
 
 ## 📝 版本配套
 
 本项目源码会跟随 CANN 软件版本发布，关于 CANN 软件版本与本项目标签的对应关系请参阅 [release 仓库](https://gitcode.com/cann/release-management) 中的相应版本说明。
 
-**当前版本：** v1.0.0 (2025-03-02)
+**当前版本：** v1.0.0 (2026-03-25)
 
 为确保您的源码定制开发顺利进行，请选择配套的 CANN 版本，使用 master 分支可能存在版本不匹配的风险。
 
@@ -86,13 +86,30 @@ sudo ./cann-950-ops-fft_9.0.0_linux-*.run --upgrade
 
 ## 📖 项目说明
 
+### API 接口实现
+
+完整的接口实现状态请参考 [接口实现文档](docs/implementation.md)。
+
+**已实现的接口（7 个）：**
+
+| 类别 | 接口 | 功能 |
+|------|------|------|
+| Plan 创建 | `aclfftCreate` | 创建空的 FFT Plan 句柄 |
+| Plan 创建 | `aclfftPlan1d` | 创建并初始化一维 FFT Plan |
+| Plan 初始化 | `aclfftMakePlan1d` | 初始化一维 FFT Plan |
+| 执行接口 | `aclfftExecR2C` | 执行实数到复数的一维 FFT |
+| Plan 管理 | `aclfftDestroy` | 销毁 FFT Plan 并释放资源 |
+| Plan 管理 | `aclfftSetStream` | 设置 Plan 的执行流 |
+| 工具接口 | `aclfftGetErrorString` | 获取错误码的描述字符串 |
+
 ### 支持的算子
 
 当前支持的算子列表：
 
-| 算子名称 | 描述 | 状态 |
-|---------|------|------|
-| [Rfft1_d](src/rfft1_d/ | 一维实数FFT运算 | ✅ 已实现 |
+| 算子名称 | 描述 | 类型 | 状态 |
+|---------|------|------|------|
+| [rfft1_d](src/rfft1_d/) | 一维实数FFT运算（Cooley-Tukey + Bluestein）| Kernel | ✅ 已实现 |
+| [dft_r2_c](src/dft_r2_c/) | 一维实数FFT运算（DFT矩阵乘实现） | Kernel | ✅ 已实现 |
 
 更多算子正在持续开发中...
 
@@ -115,39 +132,56 @@ ops-fft/
 │   ├── func.cmake             # 公共函数（算子注册等）
 │   ├── init_env.cmake         # 环境初始化
 │   ├── package.cmake          # 打包配置
-│   └── run_package.cmake      # 打包脚本
+│   ├── makeself_built_in.cmake # 打包脚本
+│   ├── variables.cmake        # 变量定义
+│   └── ...
 ├── include/                    # 公共头文件
 │   └── cann_ops_fft.h         # API 头文件
-├── scripts/                    # 脚本目录
-│   └── package/               # 打包相关脚本
-├── src/                        # 源代码目录
-│   ├── rfft1_d/                   # Rfft1_d 算子实现
-│   │   ├── rfft1_d_host.cpp       # Host 端实现
-│   │   ├── rfft1_d_kernel.cpp     # Kernel 端实现
-│   │   ├── arch35/            # 架构特定代码（可选）
-│   │   │   └── rfft1_d_struct.h   # 数据结构定义（也可定义在 .cpp 中）
+├── lib/                        # API 层实现
+│   ├── fft_plan_api.cpp       # Plan 创建接口
+│   ├── fft_plan_init_api.cpp  # Plan 初始化接口
+│   ├── fft_exec_api.cpp       # FFT 执行接口
+│   ├── fft_plan_destroy_api.cpp # Plan 销毁接口
+│   ├── fft_stream_api.cpp     # 流管理接口
+│   ├── fft_utils_api.cpp      # 工具接口
+│   ├── fft_error.h            # 错误处理
+│   ├── fft_handle_impl.h      # Plan 内部实现
+│   └── CMakeLists.txt
+├── src/                        # 算子层实现
+│   ├── common/                # 公共头文件
+│   │   ├── common.h           # 通用定义
+│   │   ├── hardware.h         # 硬件相关
+│   │   ├── mem.h              # 内存管理
+│   │   └── ...
+│   ├── rfft1_d/               # Rfft1_d 算子（Cooley-Tukey）
+│   │   ├── rfft1_d.cpp        # Host + Kernel 实现
+│   │   ├── rfft1_d.h          # 算子接口
+│   │   ├── arch35/            # 架构特定代码
+│   │   │   ├── rfft1_d_bluestein.h
+│   │   │   ├── rfft1_d_colley_tukey.h
+│   │   │   ├── rfft1_d_fast.h
+│   │   │   └── rfft1_d_tilingdata.h
 │   │   ├── tests/             # 算子测试
 │   │   │   ├── rfft1_d_test.h
 │   │   │   └── rfft1_d_test.cpp
 │   │   └── CMakeLists.txt
-│   ├── ...                    # 其他算子
 │   └── CMakeLists.txt
 ├── tests/                      # 测试框架
 │   ├── test_common.h          # 测试框架头文件
 │   ├── test_common.cpp        # 测试框架实现
 │   ├── all_tests.cpp.in       # 测试入口模板
 │   └── CMakeLists.txt
+├── docs/                       # 文档目录
+│   ├── implementation.md      # 接口实现状态文档
+│   └── ...
+├── scripts/                    # 脚本目录
+│   └── package/               # 打包相关脚本
 ├── build.sh                    # 编译脚本
 ├── CMakeLists.txt              # 主 CMake 配置
-├── version.info                # 版本信息
+├── OAT.xml                     # 许可证配置
+├── version.cmake               # 版本信息
 └── README.md                   # 本文件
 ```
-
-**说明**：
-- Host 和 Kernel 可以合并为一个 `.cpp` 文件
-- TilingData 可以定义在 `.cpp` 文件中，也可以独立为 `_struct.h`
-- `arch35/` 目录是可选的，仅在需要区分不同 SOC 架构时使用
-- 测试文件强烈推荐，但不是必需的
 
 ## 🛠️ 开发指南
 
@@ -186,7 +220,16 @@ register_operator(NAME my_op ARCH_DIR arch35)
 ./build.sh --ops=my_op --run
 ```
 
-完整示例参考 `src/rfft1_d/` 目录。
+完整示例参考 `src/rfft1_d/` 或 `src/dft_r2_c/` 目录。
+
+### 添加新接口
+
+如果要添加新的 API 接口：
+
+1. **在 `include/cann_ops_fft.h` 中声明接口**
+2. **在 `lib/` 中创建对应的实现文件**（如 `fft_my_api.cpp`）
+3. **在 `lib/CMakeLists.txt` 中添加源文件**
+4. **编写测试验证功能**
 
 ### 编写测试
 
@@ -197,8 +240,6 @@ ops-fft 提供了轻量级、自动化的测试框架。详细的测试编写指
 - 核心宏和函数说明
 - 完整编写步骤和示例
 - 最佳实践和常见问题
-
-
 
 ## 💬 相关信息
 

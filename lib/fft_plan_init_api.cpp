@@ -8,16 +8,10 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include <cstring>
 #include "cann_ops_fft.h"
 #include "fft_handle_impl.h"
 #include "fft_error.h"
-#include <cstring>
-
-// 前向声明算子层 Host API（将在后续实现）
-extern "C" aclError aclfftFftC2C1D(
-    void* workspace,
-    const void* tilingData,
-    void* stream);
 
 static const uint32_t COMPLEX_PART = 2;
 
@@ -93,9 +87,6 @@ aclfftResult aclfftMakePlan1d(aclfftHandle plan, int nx, aclfftType type, int ba
 
     // 计算数据大小
     calculate_data_sizes(impl);
-
-    // TODO: 调用算子层初始化
-    // 暂时跳过
 
     // 返回工作空间大小（暂时设为 0）
     if (workSize != nullptr) {

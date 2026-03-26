@@ -917,4 +917,4 @@ int main()
     aclTensor *inputReal = nullptr;
     aclTensor *inputImag = nullptr;
     aclTensor *outputReal = nullptr;
- 
+}

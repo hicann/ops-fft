@@ -56,7 +56,6 @@ aclfftResult aclfftPlan1d(aclfftHandle* plan, int nx, aclfftType type, int batch
     // 初始化 Plan
     size_t workSize;
     res = aclfftMakePlan1d(*plan, nx, type, batch, &workSize);
-
     // 如果初始化失败，清理 Plan
     if (res != ACLFFT_SUCCESS) {
         aclfftDestroy(*plan);
@@ -85,7 +84,6 @@ aclfftResult aclfftPlan2d(aclfftHandle* plan, int nx, int ny, aclfftType type) {
     // 初始化 Plan
     size_t workSize;
     res = aclfftMakePlan2d(*plan, nx, ny, type, &workSize);
-
     // 如果初始化失败，清理 Plan
     if (res != ACLFFT_SUCCESS) {
         aclfftDestroy(*plan);
@@ -115,7 +113,6 @@ aclfftResult aclfftPlan3d(aclfftHandle* plan, int nx, int ny, int nz, aclfftType
     // 初始化 Plan
     size_t workSize;
     res = aclfftMakePlan3d(*plan, nx, ny, nz, type, &workSize);
-
     // 如果初始化失败，清理 Plan
     if (res != ACLFFT_SUCCESS) {
         aclfftDestroy(*plan);

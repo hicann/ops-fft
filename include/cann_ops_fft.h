@@ -10,7 +10,7 @@
 
 /*!
  * \file cann_ops_fft.h
- * \brief CANN FFT 公共 API 头文件 - 提供与 hipFFT 兼容的 FFT 接口
+ * \brief CANN FFT 公共 API 头文件
  */
 
 #ifndef CANN_OPS_FFT_H

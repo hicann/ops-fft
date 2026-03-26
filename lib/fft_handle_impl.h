@@ -11,13 +11,12 @@
 #ifndef FFT_HANDLE_IMPL_H
 #define FFT_HANDLE_IMPL_H
 
-#include "cann_ops_fft.h"
 #include <memory>
+#include "cann_ops_fft.h"
 
 /**
  * @brief FFT Plan 内部实现结构
  *
- * 此结构在 API 层定义，对用户隐藏
  * 包含 Plan 配置和算子状态
  * 结构体名称 aclfftHandle_t 与公共头文件中的定义保持一致
  */
