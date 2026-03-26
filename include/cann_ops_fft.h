@@ -93,7 +93,7 @@ typedef enum aclfftLibraryPropertyType_t
 
 /*! @brief Perform a forward FFT.
  * */
-#define ACLFFT_FORWARD -1
+#define ACLFFT_FORWARD (-1)
 /*! @brief Perform a backward/inverse FFT.
  * */
 #define ACLFFT_BACKWARD 1

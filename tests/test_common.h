@@ -44,7 +44,7 @@ extern TestStats g_global_stats;
 // 测试用例开始标记
 #define TEST_CASE_BEGIN(test_name) \
     do { \
-        std::cout << "[RUN] " << test_name << "..." << std::endl; \
+        std::cout << "[RUN] " << (test_name) << "..." << std::endl; \
     } while(0)
 
 // 测试用例通过标记（自动更新统计）
@@ -54,7 +54,7 @@ extern TestStats g_global_stats;
         (local_stats).passed++; \
         OpsFftTest::g_global_stats.total++; \
         OpsFftTest::g_global_stats.passed++; \
-        std::cout << "[PASS] " << test_name << std::endl; \
+        std::cout << "[PASS] " << (test_name) << std::endl; \
     } while(0)
 
 // 断言宏：失败时打印错误信息并退出，成功时不打印
@@ -65,7 +65,7 @@ extern TestStats g_global_stats;
             (local_stats).failed++; \
             OpsFftTest::g_global_stats.total++; \
             OpsFftTest::g_global_stats.failed++; \
-            std::cerr << "  [ERROR] " << error_msg << std::endl; \
+            std::cerr << "  [ERROR] " << (error_msg) << std::endl; \
             std::exit(1); \
         } \
     } while(0)
@@ -77,7 +77,7 @@ extern TestStats g_global_stats;
         if (!all_match) { \
             auto iter = std::mismatch((expected), (expected) + (length), (actual)); \
             size_t mismatch_idx = std::distance((expected), iter.first); \
-            std::cerr << "  [ERROR] " << error_msg << " at index " << mismatch_idx << std::endl; \
+            std::cerr << "  [ERROR] " << (error_msg) << " at index " << (mismatch_idx) << std::endl; \
         } \
         TEST_ASSERT((local_stats), all_match, error_msg); \
     } while(0)
@@ -89,7 +89,7 @@ extern TestStats g_global_stats;
         size_t first_mismatch = 0; \
         if ((actual).size() != (expected).size()) { \
             all_match = false; \
-            std::cerr << "  [ERROR] " << error_msg << ": actual.size() (" << (actual).size() \
+            std::cerr << "  [ERROR] " << (error_msg) << ": actual.size() (" << (actual).size() \
                       << ") != expected.size() (" << (expected).size() << ")" << std::endl; \
         } else { \
             for (size_t _i = 0; _i < static_cast<size_t>(length); ++_i) { \
@@ -100,7 +100,7 @@ extern TestStats g_global_stats;
                 } \
             } \
             if (!all_match) { \
-                std::cerr << "  [ERROR] " << error_msg << " at index " << first_mismatch \
+                std::cerr << "  [ERROR] " << (error_msg) << " at index " << first_mismatch \
                           << ": actual=" << (actual)[first_mismatch] \
                           << ", expected=" << (expected)[first_mismatch] << std::endl; \
             } \
@@ -112,7 +112,7 @@ extern TestStats g_global_stats;
 #define TEST_PRINT_HEADER(op_name) \
     do { \
         std::cout << "========================================" << std::endl; \
-        std::cout << "    " << op_name << "算子单元测试" << std::endl; \
+        std::cout << "    " << (op_name) << "算子单元测试" << std::endl; \
         std::cout << "========================================" << std::endl; \
         std::cout << std::endl; \
     } while(0)
@@ -122,7 +122,7 @@ extern TestStats g_global_stats;
     do { \
         std::cout << std::endl; \
         std::cout << "========================================" << std::endl; \
-        std::cout << "       " << op_name << "算子测试结果" << std::endl; \
+        std::cout << "       " << (op_name) << "算子测试结果" << std::endl; \
         std::cout << "========================================" << std::endl; \
         (local_stats).print(#op_name); \
         std::cout << "========================================" << std::endl; \

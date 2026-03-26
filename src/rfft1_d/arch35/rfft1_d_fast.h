@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file rfft1_d.h
+ * \file rfft1_d_fast.h
  * \brief
  */
 
-#ifndef OPP_RFFT1D_H
-#define OPP_RFFT1D_H
+#ifndef OPP_RFFT1D_FAST_H
+#define OPP_RFFT1D_FAST_H
 
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
@@ -22,22 +22,17 @@
 #include "lib/matmul_intf.h"
 
 #define CUBE_DFT
-#define DTYPE_X float
-#define DTYPE_Y float
+using DTYPE_X = float;
+using DTYPE_Y = float;
 
 using namespace matmul;
 
-constexpr uint32_t BUFFER_NUM = 1;
 constexpr uint32_t BLOCK_LEN_FP32 = 8;
-constexpr uint32_t BLOCK_LEN_FP32_ROW = 16;
-constexpr uint32_t MIN_TRANSPOSE_ROWS = 16;
-constexpr uint32_t MIN_TRANSPOSE = MIN_TRANSPOSE_ROWS * BLOCK_LEN_FP32;
 constexpr uint32_t MAX_VEC_ELEMS_PER_REP = 64;
-constexpr uint32_t TMP_BUF_NUM_FIRST_PART = 3;
-constexpr uint32_t TMP_BUF_NUM_SECOND_PART = 2;
 constexpr uint32_t CORE_IDX_DIV = 2;
 constexpr uint32_t MAX_FACTORS_LEN = 3;
 constexpr uint32_t RFFT_HALF = 2;
+constexpr uint32_t COMPLEX = 2;
 
 constexpr uint32_t NZ_BORDER = 8;
 constexpr uint32_t NZ_BLOCK = 16;
@@ -48,31 +43,6 @@ constexpr uint32_t TILING_FAST_BASE_K = 64;
 constexpr uint32_t TILING_FAST_BASE_DEFAULT = 16;
 constexpr uint32_t TILING_FAST_DEPTH_A = 8;
 constexpr uint32_t TILING_FAST_DEPTH_B = 7;
-
-constexpr uint32_t TILING_SECOND_BASE_M = 64;
-constexpr uint32_t TILING_SECOND_BASE_N = 128;
-constexpr uint32_t TILING_SECOND_BASE_K = 64;
-constexpr uint32_t TILING_THIRD_BASE_M = 16;
-constexpr uint32_t TILING_THIRD_BASE_N = 256;
-constexpr uint32_t TILING_THIRD_BASE_K = 16;
-
-constexpr uint32_t MAX_VEC_REP = 255;
-
-constexpr uint32_t BATCHES_PER_CORE_BLUESTEIN = 1;
-constexpr uint32_t LEFT_OVER_BATCHES_BLUESTEIN = 0;
-
-static const uint8_t MASK85[16] = {85, 85, 85, 85, 85, 85, 85, 85, 0, 0, 0, 0, 0, 0, 0, 0};
-static const uint8_t MASK170[16] = {170, 170, 170, 170, 170, 170, 170, 170, 0, 0, 0, 0, 0, 0, 0, 0};
-
-const uint32_t MAX_WHOLE_DFT = 128;
-const uint32_t MAX_CT_DFT = 64;
-const uint32_t COMPLEX = 2;
-const uint8_t TMP_TENSOR_SIZE_MULTIPLIER = 3;
-
-const uint32_t UB_SIZE = 190 * 1024;
-const uint32_t UB_LEN = UB_SIZE / sizeof(DTYPE_X);
-
-constexpr uint32_t MAX_FFT_LEN = 64 * 64 * 64 * 2;
 
 class KernelRfftFastDFT {
 private:
@@ -195,7 +165,7 @@ private:
 
         GlobalTensor<DTYPE_X> inputX = xGm[offsetX];
         GlobalTensor<DTYPE_X> inputDFT = dftGm;
-        GlobalTensor<DTYPE_X> outputY = yGm[offsetY];
+        GlobalTensor<DTYPE_Y> outputY = yGm[offsetY];
         if (fftLength % NZ_BLOCK && fftLength % NZ_BLOCK <= NZ_BORDER) {
             CubeDftMul(inputX, inputDFT, outputY);
         } else {
@@ -217,22 +187,6 @@ private:
         }
     }
 };
-
-__aicore__ inline uint32_t RoundUpBlock(const uint32_t& src, const uint32_t& blockLen = BLOCK_LEN_FP32)
-{
-    if (blockLen != 0) {
-        return src != 0 ? src + (blockLen - src % blockLen) % blockLen : blockLen;
-    }
-    return blockLen;
-}
-
-__aicore__ inline uint32_t RoundDownBlock(const uint32_t& src, const uint32_t& blockLen = BLOCK_LEN_FP32)
-{
-    if (blockLen != 0) {
-        return (src / blockLen) * blockLen;
-    }
-    return blockLen;
-}
 
 __aicore__ inline TCubeTiling PrepareTiling(unsigned int m, unsigned int n, unsigned int k)
 {
@@ -275,256 +229,4 @@ __aicore__ inline TCubeTiling PrepareTiling(unsigned int m, unsigned int n, unsi
     return tiling;
 }
 
-__aicore__ inline TCubeTiling PrepareTiling1(unsigned int m, unsigned int n, unsigned int k)
-{
-    TCubeTiling tiling;
-
-    tiling.usedCoreNum = 1;
-    tiling.M = m;
-    tiling.N = n;
-    tiling.Ka = k;
-    tiling.Kb = k;
-    tiling.singleCoreM = tiling.M;
-    tiling.singleCoreN = tiling.N;
-    tiling.singleCoreK = tiling.Ka;
-    tiling.baseM = TILING_FAST_BASE_M;
-    tiling.baseN = TILING_FAST_BASE_N;
-    tiling.baseK = TILING_FAST_BASE_K;
-    tiling.depthA1 = 1;
-    tiling.depthB1 = 1;
-    tiling.stepM = 1;
-    tiling.stepN = 1;
-    tiling.stepKa = 1;
-    tiling.stepKb = 1;
-    tiling.isBias = 0;
-    tiling.transLength = 1;
-    tiling.iterateOrder = 1;
-    tiling.shareMode = 0;
-    tiling.shareL1Size = 0;
-    tiling.shareL0CSize = 0;
-    tiling.shareUbSize = 0;
-    tiling.batchM = 0;
-    tiling.batchN = 0;
-    tiling.singleBatchM = 0;
-    tiling.singleBatchN = 0;
-
-    return tiling;
-}
-
-__aicore__ inline TCubeTiling PrepareTiling2(unsigned int m, unsigned int n, unsigned int k)
-{
-    TCubeTiling tiling;
-
-    tiling.usedCoreNum = 1;
-    tiling.M = m;
-    tiling.N = n;
-    tiling.Ka = k;
-    tiling.Kb = k;
-    tiling.singleCoreM = tiling.M;
-    tiling.singleCoreN = tiling.N;
-    tiling.singleCoreK = tiling.Ka;
-    tiling.baseM = TILING_SECOND_BASE_M;
-    tiling.baseN = TILING_SECOND_BASE_N;
-    tiling.baseK = TILING_SECOND_BASE_K;
-    tiling.depthA1 = 1;
-    tiling.depthB1 = 1;
-    tiling.stepM = 1;
-    tiling.stepN = 1;
-    tiling.stepKa = 1;
-    tiling.stepKb = 1;
-    tiling.isBias = 0;
-    tiling.transLength = 1;
-    tiling.iterateOrder = 1;
-    tiling.shareMode = 0;
-    tiling.shareL1Size = 0;
-    tiling.shareL0CSize = 0;
-    tiling.shareUbSize = 0;
-    tiling.batchM = 0;
-    tiling.batchN = 0;
-    tiling.singleBatchM = 0;
-    tiling.singleBatchN = 0;
-
-    return tiling;
-}
-
-__aicore__ inline TCubeTiling PrepareTiling3(unsigned int m, unsigned int n, unsigned int k)
-{
-    TCubeTiling tiling;
-
-    tiling.usedCoreNum = 1;
-    tiling.M = m;
-    tiling.N = n;
-    tiling.Ka = k;
-    tiling.Kb = k;
-    tiling.singleCoreM = tiling.M;
-    tiling.singleCoreN = tiling.N;
-    tiling.singleCoreK = tiling.Ka;
-    tiling.baseM = TILING_THIRD_BASE_M;
-    tiling.baseN = TILING_THIRD_BASE_N;
-    tiling.baseK = TILING_THIRD_BASE_K;
-    tiling.depthA1 = 1;
-    tiling.depthB1 = 1;
-    tiling.stepM = 1;
-    tiling.stepN = 1;
-    tiling.stepKa = 1;
-    tiling.stepKb = 1;
-    tiling.isBias = 0;
-    tiling.transLength = 1;
-    tiling.iterateOrder = 1;
-    tiling.shareMode = 0;
-    tiling.shareL1Size = 0;
-    tiling.shareL0CSize = 0;
-    tiling.shareUbSize = 0;
-    tiling.batchM = 0;
-    tiling.batchN = 0;
-    tiling.singleBatchM = 0;
-    tiling.singleBatchN = 0;
-
-    return tiling;
-}
-
-__aicore__ inline TCubeTiling PrepareTiling4(unsigned int m, unsigned int n, unsigned int k)
-{
-    TCubeTiling tiling;
-
-    tiling.usedCoreNum = 1;
-    tiling.M = m;
-    tiling.N = n;
-    tiling.Ka = k;
-    tiling.Kb = k;
-    tiling.singleCoreM = tiling.M;
-    tiling.singleCoreN = tiling.N;
-    tiling.singleCoreK = tiling.Ka;
-    tiling.baseM = TILING_THIRD_BASE_M;
-    tiling.baseN = TILING_THIRD_BASE_N;
-    tiling.baseK = TILING_THIRD_BASE_K;
-    tiling.depthA1 = 1;
-    tiling.depthB1 = 1;
-    tiling.stepM = 1;
-    tiling.stepN = 1;
-    tiling.stepKa = 1;
-    tiling.stepKb = 1;
-    tiling.isBias = 0;
-    tiling.transLength = 1;
-    tiling.iterateOrder = 1;
-    tiling.shareMode = 0;
-    tiling.shareL1Size = 0;
-    tiling.shareL0CSize = 0;
-    tiling.shareUbSize = 0;
-    tiling.batchM = 0;
-    tiling.batchN = 0;
-    tiling.singleBatchM = 0;
-    tiling.singleBatchN = 0;
-
-    return tiling;
-}
-
-__aicore__ inline TCubeTiling PrepareTiling5(unsigned int m, unsigned int n, unsigned int k)
-{
-    TCubeTiling tiling;
-
-    tiling.usedCoreNum = 1;
-    tiling.M = m;
-    tiling.N = n;
-    tiling.Ka = k;
-    tiling.Kb = k;
-    tiling.singleCoreM = tiling.M;
-    tiling.singleCoreN = tiling.N;
-    tiling.singleCoreK = tiling.Ka;
-    tiling.baseM = 64;
-    tiling.baseN = 128;
-    tiling.baseK = 64;
-    tiling.depthA1 = 1;
-    tiling.depthB1 = 1;
-    tiling.stepM = 1;
-    tiling.stepN = 1;
-    tiling.stepKa = 1;
-    tiling.stepKb = 1;
-    tiling.isBias = 0;
-    tiling.transLength = 1;
-    tiling.iterateOrder = 1;
-    tiling.shareMode = 0;
-    tiling.shareL1Size = 0;
-    tiling.shareL0CSize = 0;
-    tiling.shareUbSize = 0;
-    tiling.batchM = 0;
-    tiling.batchN = 0;
-    tiling.singleBatchM = 0;
-    tiling.singleBatchN = 0;
-
-    return tiling;
-}
-
-__aicore__ inline TCubeTiling PrepareTiling6(unsigned int m, unsigned int n, unsigned int k)
-{
-    TCubeTiling tiling;
-
-    tiling.usedCoreNum = 1;
-    tiling.M = m;
-    tiling.N = n;
-    tiling.Ka = k;
-    tiling.Kb = k;
-    tiling.singleCoreM = tiling.M;
-    tiling.singleCoreN = tiling.N;
-    tiling.singleCoreK = tiling.Ka;
-    tiling.baseM = 16;
-    tiling.baseN = 256;
-    tiling.baseK = 16;
-    tiling.depthA1 = 1;
-    tiling.depthB1 = 1;
-    tiling.stepM = 1;
-    tiling.stepN = 1;
-    tiling.stepKa = 1;
-    tiling.stepKb = 1;
-    tiling.isBias = 0;
-    tiling.transLength = 1;
-    tiling.iterateOrder = 1;
-    tiling.shareMode = 0;
-    tiling.shareL1Size = 0;
-    tiling.shareL0CSize = 0;
-    tiling.shareUbSize = 0;
-    tiling.batchM = 0;
-    tiling.batchN = 0;
-    tiling.singleBatchM = 0;
-    tiling.singleBatchN = 0;
-
-    return tiling;
-}
-
-__aicore__ inline TCubeTiling PrepareTiling7(unsigned int m, unsigned int n, unsigned int k)
-{
-    TCubeTiling tiling;
-
-    tiling.usedCoreNum = 1;
-    tiling.M = m;
-    tiling.N = n;
-    tiling.Ka = k;
-    tiling.Kb = k;
-    tiling.singleCoreM = tiling.M;
-    tiling.singleCoreN = tiling.N;
-    tiling.singleCoreK = tiling.Ka;
-    tiling.baseM = 256;
-    tiling.baseN = 16;
-    tiling.baseK = 16;
-    tiling.depthA1 = 1;
-    tiling.depthB1 = 1;
-    tiling.stepM = 1;
-    tiling.stepN = 1;
-    tiling.stepKa = 1;
-    tiling.stepKb = 1;
-    tiling.isBias = 0;
-    tiling.transLength = 1;
-    tiling.iterateOrder = 1;
-    tiling.shareMode = 0;
-    tiling.shareL1Size = 0;
-    tiling.shareL0CSize = 0;
-    tiling.shareUbSize = 0;
-    tiling.batchM = 0;
-    tiling.batchN = 0;
-    tiling.singleBatchM = 0;
-    tiling.singleBatchN = 0;
-
-    return tiling;
-}
-
-#endif
+#endif // OPP_RFFT1D_H

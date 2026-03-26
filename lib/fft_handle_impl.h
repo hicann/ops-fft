@@ -63,11 +63,8 @@ struct aclfftHandle_t {
           operator_state(nullptr),
           has_operator_state(false),
           is_initialized(false),
-          is_destroyed(false) {
-        lengths[0] = 0;
-        lengths[1] = 0;
-        lengths[2] = 0;
-    }
+          is_destroyed(false),
+          lengths{0} {}
 
     /**
      * @brief 析构函数

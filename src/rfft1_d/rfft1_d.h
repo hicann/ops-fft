@@ -16,7 +16,7 @@
 #ifndef RFFT1_D_H
 #define RFFT1_D_H
 
-#include <stdint.h>
+#include <cstdint>
 #include "acl/acl.h"
 
 /* 导出宏定义 */

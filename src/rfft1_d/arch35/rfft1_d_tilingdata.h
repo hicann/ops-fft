@@ -8,6 +8,14 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+/*!
+ * \file rfft1_d_tilingdata.h
+ * \brief
+ */
+
+#ifndef RFFT1_D_TILINGDATA_H
+#define RFFT1_D_TILINGDATA_H
+
 struct Rfft1DTilingData {
     int32_t length;
     uint8_t isBluestein;
@@ -34,3 +42,4 @@ struct Rfft1DTilingData {
     uint32_t twiddleOffsets[3];
 };
 
+#endif // RFFT1_D_TILINGDATA_H

@@ -15,6 +15,8 @@
 #include <vector>
 #include <cmath>
 
+static const uint32_t COMPLEX_PART = 2;
+
 void test_r2c_api_basic(aclrtStream stream, OpsFftTest::TestStats& stats) {
     TEST_CASE_BEGIN("test_r2c_api_basic");
 
@@ -48,16 +50,16 @@ void test_r2c_api_basic(aclrtStream stream, OpsFftTest::TestStats& stats) {
     };
 
     // 比较实部和虚部
-    std::vector<float> output_flat(output_size * 2);
-    std::vector<float> expected_flat(output_size * 2);
+    std::vector<float> output_flat(output_size * COMPLEX_PART);
+    std::vector<float> expected_flat(output_size * COMPLEX_PART);
     for (int i = 0; i < output_size; ++i) {
-        output_flat[i * 2] = output[i].x;
-        output_flat[i * 2 + 1] = output[i].y;
-        expected_flat[i * 2] = expected[i].x;
-        expected_flat[i * 2 + 1] = expected[i].y;
+        output_flat[i * COMPLEX_PART] = output[i].x;
+        output_flat[i * COMPLEX_PART + 1] = output[i].y;
+        expected_flat[i * COMPLEX_PART] = expected[i].x;
+        expected_flat[i * COMPLEX_PART + 1] = expected[i].y;
     }
 
-    TEST_ASSERT_ARRAY_NEAR(stats, output_flat, expected_flat, output_size * 2, 1e-3f, "result mismatch");
+    TEST_ASSERT_ARRAY_NEAR(stats, output_flat, expected_flat, output_size * COMPLEX_PART, 1e-3f, "result mismatch");
 
     // 6. 清理
     aclfftDestroy(plan);
@@ -90,19 +92,19 @@ void test_r2c_api_impulse(aclrtStream stream, OpsFftTest::TestStats& stats) {
     TEST_ASSERT(stats, res == ACLFFT_SUCCESS, "aclfftExecR2C failed");
 
     // 5. 验证结果（所有分量都应该是 1.0）
-    std::vector<float> expected(output_size * 2, 1.0f);  // 实部=1.0, 虚部=0.0
+    std::vector<float> expected(output_size * COMPLEX_PART, 1.0f);  // 实部=1.0, 虚部=0.0
     expected[1] = 0.0f;  // 第一个虚部
     for (int i = 1; i < output_size; ++i) {
-        expected[i * 2 + 1] = 0.0f;  // 其他虚部
+        expected[i * COMPLEX_PART + 1] = 0.0f;  // 其他虚部
     }
 
-    std::vector<float> output_flat(output_size * 2);
+    std::vector<float> output_flat(output_size * COMPLEX_PART);
     for (int i = 0; i < output_size; ++i) {
-        output_flat[i * 2] = output[i].x;
-        output_flat[i * 2 + 1] = output[i].y;
+        output_flat[i * COMPLEX_PART] = output[i].x;
+        output_flat[i * COMPLEX_PART + 1] = output[i].y;
     }
 
-    TEST_ASSERT_ARRAY_NEAR(stats, output_flat, expected, output_size * 2, 0.01f, "impulse result mismatch");
+    TEST_ASSERT_ARRAY_NEAR(stats, output_flat, expected, output_size * COMPLEX_PART, 0.01f, "impulse result mismatch");
 
     // 6. 清理
     aclfftDestroy(plan);

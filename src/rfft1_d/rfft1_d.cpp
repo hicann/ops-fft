@@ -32,7 +32,6 @@
 static const uint32_t LAST_FACTOR = 64;
 static const uint32_t COMPLEX_PART = 2;
 static const uint32_t INIT_VALUE = 1;
-
 static const uint32_t MATMUL_SIZE_MULTIPLIER = 24;
 static const uint32_t SIZE_PER_BATCH_MULTIPLIER = 4;
 static const uint32_t BYTES_ALIGN = 8;
@@ -40,10 +39,12 @@ static const uint32_t ROW_PAD = 16;
 static const uint32_t COL_PAD = 8;
 static const uint32_t TWIDDLE_MATRICES_AMOUNT = 2;
 static const uint32_t DFT_BORDER_VALUE = 4096;
+static const uint32_t DFT_OFFSETS_COUNT = 3;
+static const uint32_t RFFT_SYMMETRY_DIVISOR = 2;
+static const uint32_t SYS_WORKSPACE_SIZE_16MB = 16 * 1024 * 1024;
 // NORM_VALUES
 static const uint32_t BACKWARD = 1;
 static const uint32_t FORWARD = 2;
-static const uint32_t ORTHO = 3;
 
 // ACL 错误检查宏
 #define CHECK_ACL(call)                                              \
@@ -133,16 +134,16 @@ static void CalcDftSizes(Rfft1DTilingData &tiling, const uint32_t factors[], con
     uint32_t dftImagOverallSize = 0;
     uint32_t twiddleOverallSize = 0;
 
-    uint32_t dftRealOffsets[3] = {0, 1, 1};
-    uint32_t dftImagOffsets[3] = {0, 1, 1};
-    uint32_t twiddleOffsets[3] = {0, 0, 1};
+    uint32_t dftRealOffsets[DFT_OFFSETS_COUNT] = {0, 1, 1};
+    uint32_t dftImagOffsets[DFT_OFFSETS_COUNT] = {0, 1, 1};
+    uint32_t twiddleOffsets[DFT_OFFSETS_COUNT] = {0, 0, 1};
 
     size_t prevFactors = 1;
 
     for (size_t curIndex = 0; curIndex < MAX_FACTORS_LEN; ++curIndex) {
         size_t curFactor = factors[curIndex];
         size_t rowsNum = curFactor * (1 + static_cast<size_t>(curIndex == 0 && isBluestein));
-        size_t colsNum = curFactor * (2 - static_cast<size_t>(curIndex != 0));
+        size_t colsNum = curFactor * (COMPLEX_PART - static_cast<size_t>(curIndex != 0));
         size_t dftCurSize = rowsNum * colsNum;
         size_t twiddleCurSize = rowsNum * prevFactors * COMPLEX_PART;
 
@@ -171,7 +172,7 @@ static void CalcDftSizes(Rfft1DTilingData &tiling, const uint32_t factors[], con
     tiling.twiddleOverallSize = twiddleOverallSize;
     tiling.fftMatrOverallSize = dftRealOverallSize + dftImagOverallSize + TWIDDLE_MATRICES_AMOUNT * twiddleOverallSize;
 
-    for (size_t i = 0; i < 3; i++) {
+    for (size_t i = 0; i < DFT_OFFSETS_COUNT; i++) {
         tiling.dftRealOffsets[i] = dftRealOffsets[i];
         tiling.dftImagOffsets[i] = dftImagOffsets[i];
         tiling.twiddleOffsets[i] = twiddleOffsets[i];
@@ -209,7 +210,7 @@ static int SetTilingData(Rfft1DTilingData &tiling, uint32_t n, int32_t norm, uin
         return src != 0 ? src + (blockLen - src % blockLen) % blockLen : blockLen;
     };
 
-    const uint32_t tailSize = COMPLEX_PART * (((n / COMPLEX_PART) + 1) - (factors[2] / COMPLEX_PART) * (n / factors[2]));
+    const uint32_t tailSize = COMPLEX_PART * (((n / RFFT_SYMMETRY_DIVISOR) + 1) - (factors[2] / COMPLEX_PART) * (n / factors[2]));
     const uint32_t tmpLenPerBatch = 3 * roundUpBlock(
                                             COMPLEX_PART * (isBluestein ? lengthPad : n) + factors[2] * tailSize + 1,
                                             BYTES_ALIGN * SIZE_PER_BATCH_MULTIPLIER);
@@ -217,7 +218,7 @@ static int SetTilingData(Rfft1DTilingData &tiling, uint32_t n, int32_t norm, uin
     tiling.length = n;
     tiling.isBluestein = isBluestein;
     tiling.lengthPad = lengthPad;
-    tiling.outLength = (n / COMPLEX_PART) + 1;
+    tiling.outLength = (n / RFFT_SYMMETRY_DIVISOR) + 1;
     tiling.tailSize = tailSize;
     tiling.batchesPerCore = batches / coreNum;
     tiling.leftOverBatches = batches % coreNum;
@@ -227,7 +228,7 @@ static int SetTilingData(Rfft1DTilingData &tiling, uint32_t n, int32_t norm, uin
     tiling.matmulTmpsLen = MATMUL_SIZE_MULTIPLIER * tmpLenPerBatch;
     tiling.matmulTmpsSize = MATMUL_SIZE_MULTIPLIER * tmpLenPerBatch * sizeof(float);
 
-    for (size_t i = 0; i < 3; i++) {
+    for (size_t i = 0; i < MAX_FACTORS_LEN; i++) {
         tiling.factors[i] = factors[i];
         tiling.prevRadices[i] = prevRadices[i];
         tiling.nextRadices[i] = nextRadices[i];
@@ -250,7 +251,7 @@ static std::vector<float> Rfft1DDftGen(int64_t fftLength, int64_t norm)
     size_t fftLenPad = fftLength + (NZ_BORDER - fftLength % NZ_BORDER);
     size_t fftLenPadRow = fftLength + (NZ_BLOCK - fftLength % NZ_BLOCK);
 
-    size_t fftOut = fftLength / COMPLEX + 1;
+    size_t fftOut = fftLength / RFFT_SYMMETRY_DIVISOR + 1;
     dftNz.reserve(fftLenPadRow * fftLenPadRow);
 
     std::vector<float> dftNd(fftLenPad * fftLenPadRow, 0);
@@ -276,7 +277,7 @@ static std::vector<float> Rfft1DDftGen(int64_t fftLength, int64_t norm)
                 dftNd[k] = normParam * sin(param);
                 ++k;
             }
-            for (size_t j = 0; j + COMPLEX * fftOut < fftLenPad; ++j) {
+            for (size_t j = 0; j + COMPLEX_PART * fftOut < fftLenPad; ++j) {
                 dftNd[k] = INIT_VALUE;
                 ++k;
             }
@@ -301,7 +302,7 @@ extern "C" __global__ __aicore__ void rfft1_d(GM_ADDR x, GM_ADDR dft, GM_ADDR y,
         KernelRfftFastDFT op(tilingData.length, tilingData.batchesPerCore, tilingData.leftOverBatches, 
                             tilingData.normal, tilingData.dftRealOverallSize, factorsP);
 
-        uint32_t modeLength = 2 * (tilingData.length / 2 + 1);
+        uint32_t modeLength = COMPLEX_PART * (tilingData.length / RFFT_SYMMETRY_DIVISOR + 1);
         auto t1 = PrepareTiling((op.batches + op.advancedBatches) / GetBlockNum(), op.modeLength, tilingData.length);
         REGIST_MATMUL_OBJ(&op.pipe, workspace, op.matmulObj, (void*)&t1, op.matmulObjNZ, (void*)&t1);
 
@@ -318,11 +319,11 @@ extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, u
 
     auto dft = Rfft1DDftGen(n, norm);
 
-    uint32_t sysWorkspaceSize = 16 * 1024 * 1024;
+    uint32_t sysWorkspaceSize = SYS_WORKSPACE_SIZE_16MB;
 
     const uint32_t inputSize = n * sizeof(float);
     const uint32_t dftSize = dft.size() * sizeof(float);
-    const uint32_t outputSize = ((n / COMPLEX_PART) + 1) * 2 * sizeof(float);
+    const uint32_t outputSize = ((n / RFFT_SYMMETRY_DIVISOR) + 1) * COMPLEX_PART * sizeof(float);
 
     void *dev_x = nullptr;
     void *dev_dft = nullptr;

@@ -19,6 +19,8 @@ extern "C" aclError aclfftFftC2C1D(
     const void* tilingData,
     void* stream);
 
+static const uint32_t COMPLEX_PART = 2;
+
 /**
  * @brief 计算数据大小和元素大小
  */
@@ -51,15 +53,15 @@ static void calculate_data_sizes(aclfftHandle_t* plan) {
     if (plan->type == ACLFFT_R2C || plan->type == ACLFFT_D2Z) {
         // 实数到复数：输入是实数，输出是复数
         plan->input_size = total_elements * plan->element_size;
-        plan->output_size = total_elements * 2 * plan->element_size;  // 复数需要 2 倍空间
+        plan->output_size = total_elements * COMPLEX_PART * plan->element_size;  // 复数需要 2 倍空间
     } else if (plan->type == ACLFFT_C2R || plan->type == ACLFFT_Z2D) {
         // 复数到实数：输入是复数，输出是实数
-        plan->input_size = total_elements * 2 * plan->element_size;
+        plan->input_size = total_elements * COMPLEX_PART * plan->element_size;
         plan->output_size = total_elements * plan->element_size;
     } else {
         // C2C 或 Z2Z：输入输出都是复数
-        plan->input_size = total_elements * 2 * plan->element_size;
-        plan->output_size = total_elements * 2 * plan->element_size;
+        plan->input_size = total_elements * COMPLEX_PART * plan->element_size;
+        plan->output_size = total_elements * COMPLEX_PART * plan->element_size;
     }
 }
 
@@ -86,8 +88,6 @@ aclfftResult aclfftMakePlan1d(aclfftHandle plan, int nx, aclfftType type, int ba
     // 设置基本参数
     impl->rank = 1;
     impl->lengths[0] = nx;
-    impl->lengths[1] = 0;
-    impl->lengths[2] = 0;
     impl->batch = batch;
     impl->type = type;
 
