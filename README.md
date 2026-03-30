@@ -2,7 +2,7 @@
 
 ## 🔥 最新动态
 - [2026/03] 实现完整的 Plan 管理机制，支持 Plan 创建、执行、销毁全生命周期
-- [2026/03] 新增 `dft_r2_c` 和 `rfft1_d` 算子，支持实数到复数的一维 FFT
+- [2026/03] 新增 `rfft1_d` 算子，支持实数到复数的一维 FFT
 - [2026/03] 建立完整的测试框架，支持单元测试、自动化测试统计
 - [2026/03] 实现标准化的打包流程，生成 .run 安装包，支持 install/uninstall/upgrade 完整生命周期管理
 
@@ -106,10 +106,9 @@ sudo ./cann-950-ops-fft_9.0.0_linux-*.run --upgrade
 
 当前支持的算子列表：
 
-| 算子名称 | 描述 | 类型 | 状态 |
-|---------|------|------|------|
-| [rfft1_d](src/rfft1_d/) | 一维实数FFT运算（Cooley-Tukey + Bluestein）| Kernel | ✅ 已实现 |
-| [dft_r2_c](src/dft_r2_c/) | 一维实数FFT运算（DFT矩阵乘实现） | Kernel | ✅ 已实现 |
+| 算子名称 | 描述 | 状态 |
+|---------|------|------|
+| [rfft1_d](src/rfft1_d/) | 一维实数FFT运算 | ✅ 已实现 |
 
 更多算子正在持续开发中...
 
@@ -118,11 +117,11 @@ sudo ./cann-950-ops-fft_9.0.0_linux-*.run --upgrade
 | SoC 型号 | SOC_VERSION | 支持状态 |
 |---------|-------------|---------|
 | Ascend950 | ascend950dt_9595 | ✅ 默认支持 |
-| Ascend910B | ascend910b3 | ✅ 支持 |
-| Ascend910_93 | ascend910_93 | ✅ 支持 |
-| Ascend910 | ascend910 | ✅ 支持 |
-| Ascend310P | ascend310p | ✅ 支持 |
-| Ascend310B | ascend310b | ✅ 支持 |
+| Ascend910B | ascend910b3 | ❌ 暂不支持 |
+| Ascend910_93 | ascend910_93 | ❌ 暂不支持 |
+| Ascend910 | ascend910 | ❌ 暂不支持 |
+| Ascend310P | ascend310p | ❌ 暂不支持 |
+| Ascend310B | ascend310b | ❌ 暂不支持 |
 
 ## 🔍 目录结构
 
@@ -157,8 +156,6 @@ ops-fft/
 │   │   ├── rfft1_d.cpp        # Host + Kernel 实现
 │   │   ├── rfft1_d.h          # 算子接口
 │   │   ├── arch35/            # 架构特定代码
-│   │   │   ├── rfft1_d_bluestein.h
-│   │   │   ├── rfft1_d_colley_tukey.h
 │   │   │   ├── rfft1_d_fast.h
 │   │   │   └── rfft1_d_tilingdata.h
 │   │   ├── tests/             # 算子测试
@@ -220,7 +217,7 @@ register_operator(NAME my_op ARCH_DIR arch35)
 ./build.sh --ops=my_op --run
 ```
 
-完整示例参考 `src/rfft1_d/` 或 `src/dft_r2_c/` 目录。
+完整示例参考 `src/rfft1_d/` 目录。
 
 ### 添加新接口
 

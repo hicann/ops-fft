@@ -31,7 +31,7 @@
 
 static const uint32_t LAST_FACTOR = 64;
 static const uint32_t COMPLEX_PART = 2;
-static const uint32_t INIT_VALUE = 1;
+static const double INIT_VALUE = 0.;
 static const uint32_t MATMUL_SIZE_MULTIPLIER = 24;
 static const uint32_t SIZE_PER_BATCH_MULTIPLIER = 4;
 static const uint32_t BYTES_ALIGN = 8;
@@ -41,7 +41,6 @@ static const uint32_t TWIDDLE_MATRICES_AMOUNT = 2;
 static const uint32_t DFT_BORDER_VALUE = 4096;
 static const uint32_t DFT_OFFSETS_COUNT = 3;
 static const uint32_t RFFT_SYMMETRY_DIVISOR = 2;
-static const uint32_t SYS_WORKSPACE_SIZE_16MB = 16 * 1024 * 1024;
 // NORM_VALUES
 static const uint32_t BACKWARD = 1;
 static const uint32_t FORWARD = 2;
@@ -241,10 +240,10 @@ static int SetTilingData(Rfft1DTilingData &tiling, uint32_t n, int32_t norm, uin
 static std::vector<float> Rfft1DDftGen(int64_t fftLength, int64_t norm)
 {
     std::vector<float> dftNz;
-    float normParam = 1.;
+    double normParam = 1.;
 
     if (norm != BACKWARD) {
-        normParam = norm == FORWARD ? normParam / float(fftLength) : normParam / sqrt(float(fftLength));
+        normParam = norm == FORWARD ? normParam / double(fftLength) : normParam / sqrt(double(fftLength));
     }
 
     size_t fftLenPad = fftLength + (NZ_BORDER - fftLength % NZ_BORDER);
@@ -253,24 +252,25 @@ static std::vector<float> Rfft1DDftGen(int64_t fftLength, int64_t norm)
     size_t fftOut = fftLength / RFFT_SYMMETRY_DIVISOR + 1;
     dftNz.reserve(fftLenPadRow * fftLenPadRow);
 
-    std::vector<float> dftNd(fftLenPad * fftLenPadRow, 0);
+    std::vector<double> dftNd(fftLenPad * fftLenPadRow, INIT_VALUE);
     size_t k = 0;
 
     if ((fftLength % NZ_BLOCK != 0) && (fftLength % NZ_BLOCK <= NZ_BORDER)) {
         for (int i = 0; i < fftLength; ++i) {
             for (size_t j = 0; j < fftOut; ++j) {
-                float param = -2. * M_PI * i * j / float(fftLength);
+                double param = -2. * M_PI * i * j / double(fftLength);
                 dftNd[k] = normParam * cos(param);
                 ++k;
                 dftNd[k] = normParam * sin(param);
                 ++k;
             }
         }
-        return dftNd;
+        dftNz.assign(dftNd.begin(), dftNd.end());
+        return dftNz;
     } else {
         for (int i = 0; i < fftLength; ++i) {
             for (size_t j = 0; j < fftOut; ++j) {
-                float param = -2. * M_PI * i * j / float(fftLength);
+                double param = -2. * M_PI * i * j / double(fftLength);
                 dftNd[k] = normParam * cos(param);
                 ++k;
                 dftNd[k] = normParam * sin(param);
@@ -284,7 +284,7 @@ static std::vector<float> Rfft1DDftGen(int64_t fftLength, int64_t norm)
         for (size_t n = 0; n < fftLenPad / NZ_BORDER; ++n) {
             for (size_t i = 0; i < fftLenPadRow; ++i) {
                 for (size_t blockIdx = 0; blockIdx < NZ_BORDER; ++blockIdx) {
-                    dftNz.emplace_back(dftNd[i * fftLenPad + NZ_BORDER * n + blockIdx]);
+                    dftNz.emplace_back(static_cast<float>(dftNd[i * fftLenPad + NZ_BORDER * n + blockIdx]));
                 }
             }
         }
@@ -318,11 +318,11 @@ extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, u
 
     auto dft = Rfft1DDftGen(n, norm);
 
-    uint32_t sysWorkspaceSize = SYS_WORKSPACE_SIZE_16MB;
+    uint32_t sysWorkspaceSize = ascendcPlatform->GetLibApiWorkSpaceSize();
 
-    const uint32_t inputSize = n * sizeof(float);
+    const uint32_t inputSize = n * batches * sizeof(float);
     const uint32_t dftSize = dft.size() * sizeof(float);
-    const uint32_t outputSize = ((n / RFFT_SYMMETRY_DIVISOR) + 1) * COMPLEX_PART * sizeof(float);
+    const uint32_t outputSize = ((n / RFFT_SYMMETRY_DIVISOR) + 1) * COMPLEX_PART * batches * sizeof(float);
 
     void *dev_x = nullptr;
     void *dev_dft = nullptr;
@@ -338,6 +338,7 @@ extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, u
     std::unique_ptr<void, AclrtFreeDeleter> d_x_guard(dev_x);
     std::unique_ptr<void, AclrtFreeDeleter> d_dft_guard(dev_dft);
     std::unique_ptr<void, AclrtFreeDeleter> d_y_guard(dev_y);
+    std::unique_ptr<void, AclrtFreeDeleter> workspace_ptr_guard(workspace_ptr);
 
     // Copy inputs to device
     CHECK_ACL(aclrtMemcpy(dev_x, inputSize, x, inputSize, ACL_MEMCPY_HOST_TO_DEVICE));
