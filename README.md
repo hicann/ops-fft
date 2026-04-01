@@ -31,7 +31,7 @@ ops-fft 是 [CANN](https://hiascend.com/software/cann) （Compute Architecture f
 ### 环境要求
 
 - CANN 8.0 及以上版本
-- 支持 Ascend950、Ascend910B、Ascend910_93、Ascend910、Ascend310P、Ascend310B 等 SoC
+- 支持 Ascend950 SoC（当前版本仅支持Ascend950，其他soc型号暂不支持）
 - Linux x86_64/AArch64 平台
 
 ### 环境配置
@@ -69,13 +69,13 @@ echo $ASCEND_HOME_PATH
 
 ```bash
 # 标准安装（需要 root 权限）
-sudo ./cann-950-ops-fft_9.0.0_linux-*.run
+sudo ./cann-950-ops-fft_9.0.0_linux-*.run --full
 
 # 查看安装包信息
 ./cann-950-ops-fft_9.0.0_linux-*.run --help
 
 # 安装到自定义路径
-sudo ./cann-950-ops-fft_9.0.0_linux-*.run --install-path=/opt/ascend
+sudo ./cann-950-ops-fft_9.0.0_linux-*.run --full --install-path=/opt/ascend
 
 # 卸载
 sudo ./cann-950-ops-fft_9.0.0_linux-*.run --uninstall

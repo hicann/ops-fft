@@ -63,7 +63,10 @@ void test_xxx(aclrtStream stream, OpsFftTest::TestStats& stats) {
     float output[2];
 
     // 调用算子
+    // 可以直接调用算子的接口
     aclError result = acl<OpName>(input1, input2, output, 2, stream);
+    // 也可以通过Api来调用
+    // aclError result = aclfftExecR2C(plan, input1, output);
 
     // 验证结果
     TEST_ASSERT(stats, result == ACL_SUCCESS, "failed");

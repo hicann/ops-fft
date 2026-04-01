@@ -5,16 +5,15 @@
 开发一个算子需要以下文件：
 
 ```
-src/
-├── rfft1_d/                        # 示例：Rfft1_d 算子
-│   ├── rfft1_d.cpp                # Host + Kernel 实现
-│   ├── rfft1_d_struct.h           # Tiling 数据结构（可选）
-│   ├── CMakeLists.txt         # 编译配置
-│   └── tests/                 # 测试目录（强烈推荐）
-│       ├── rfft1_d_test.h
-│       └── rfft1_d_test.cpp
-├── ...                        # 其他算子
-└── CMakeLists.txt
+${op_name}/                              # 算子名的小写下划线形式
+├── CMakeLists.txt                       # 算子编译配置文件
+├── ${op_name}_kernel.cpp                # Kernel实现文件(可自定义文件名)
+├── ${op_name}_host.cpp                  # Host侧代码(可自定义文件名)
+├── arch35/                              # Ascend950特有实现
+│   └── ${op_name}_struct.h              # 算子结构定义(可自定义文件名)
+└── tests/                               # 测试用例目录
+    ├── ${op_name}_test.cpp              # 算子测试用例
+    └── ${op_name}_test.h                # 测试头文件
 ```
 
 **说明**：

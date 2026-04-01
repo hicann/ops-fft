@@ -47,11 +47,7 @@ build.sh 支持多种功能，可通过 `--help` 参数查看所有选项：
 | SoC 型号 | SOC_VERSION（CANN 编译器） | 说明 |
 |---------|---------------------------|------|
 | Ascend950 | ascend950dt_9595 | 默认支持（dav-3510） |
-| Ascend910B | ascend910b3 | dav-2201 |
-| Ascend910_93 | ascend910_93 | dav-2201 |
-| Ascend910 | ascend910 | dav-2101 |
-| Ascend310P | ascend310p | dav-2101 |
-| Ascend310B | ascend310b | dav-2101 |
+
 
 ## 使用示例
 
@@ -94,10 +90,10 @@ build.sh 支持多种功能，可通过 `--help` 参数查看所有选项：
 ./build.sh --ops=rfft1_d --pkg
 
 # 为指定 SoC 打包
-./build.sh --soc=Ascend910B --pkg
+./build.sh --soc=Ascend950 --pkg
 
 # 大小写不敏感
-./build.sh --soc=ascend910b --pkg
+./build.sh --soc=ascend950 --pkg
 ```
 
 ### 组合使用
@@ -107,7 +103,7 @@ build.sh 支持多种功能，可通过 `--help` 参数查看所有选项：
 ./build.sh --ops=rfft1_d --run -j16
 
 # 编译所有算子、打包、指定 SoC
-./build.sh --pkg --soc=Ascend910B -j16
+./build.sh --pkg --soc=Ascend950 -j16
 ```
 
 ## 行为说明
@@ -148,7 +144,7 @@ build_out/cann-{soc}-ops-fft_{version}_linux-{arch}.run
 
 例如：
 - `cann-950-ops-fft_9.0.0_linux-x86_64.run`
-- `cann-910b-ops-fft_9.0.0_linux-aarch64.run`
+- `cann-950-ops-fft_9.0.0_linux-aarch64.run`
 
 ## 注意事项
 
