@@ -133,7 +133,24 @@ ops-fft/
 │   ├── package.cmake          # 打包配置
 │   ├── makeself_built_in.cmake # 打包脚本
 │   ├── variables.cmake        # 变量定义
-│   └── ...
+│   └── third_party/           # 第三方 CMake 模块
+│       └── makeself-fetch.cmake
+├── docs/                       # 文档目录
+│   ├── README.md              # 文档导航
+│   ├── implementation.md      # 接口实现状态文档
+│   └── zh/                    # 中文文档
+│       ├── op_list.md         # 算子列表
+│       ├── context/           # 背景与环境
+│       │   ├── build.md       # 编译参数说明
+│       │   ├── dir_structure.md # 目录结构说明
+│       │   └── quick_install.md # 快速安装指南
+│       ├── debug/             # 调试相关
+│       │   └── op_debug_prof.md # 算子调试与 Profiling
+│       ├── develop/           # 开发指南
+│       │   ├── operator_development_guide.md # 算子开发指南
+│       │   └── test_writing_guide.md         # 测试编写指南
+│       └── invocation/        # 调用示例
+│           └── quick_op_invocation.md
 ├── include/                    # 公共头文件
 │   └── cann_ops_fft.h         # API 头文件
 ├── lib/                        # API 层实现
@@ -146,12 +163,16 @@ ops-fft/
 │   ├── fft_error.h            # 错误处理
 │   ├── fft_handle_impl.h      # Plan 内部实现
 │   └── CMakeLists.txt
+├── scripts/                    # 脚本目录
+│   ├── check_build_dependencies.py # 构建依赖检查
+│   ├── generate_version_info.py    # 版本信息生成
+│   └── package/               # 打包相关脚本
+│       ├── common/            # 公共打包工具
+│       ├── latest_manager/    # 版本管理脚本
+│       ├── module/            # 模块配置（XML）
+│       ├── ops_fft/           # ops-fft 安装脚本
+│       └── package.py         # 打包入口
 ├── src/                        # 算子层实现
-│   ├── common/                # 公共头文件
-│   │   ├── common.h           # 通用定义
-│   │   ├── hardware.h         # 硬件相关
-│   │   ├── mem.h              # 内存管理
-│   │   └── ...
 │   ├── rfft1_d/               # Rfft1_d 算子（Cooley-Tukey）
 │   │   ├── rfft1_d.cpp        # Host + Kernel 实现
 │   │   ├── rfft1_d.h          # 算子接口
@@ -168,15 +189,20 @@ ops-fft/
 │   ├── test_common.cpp        # 测试框架实现
 │   ├── all_tests.cpp.in       # 测试入口模板
 │   └── CMakeLists.txt
-├── docs/                       # 文档目录
-│   ├── implementation.md      # 接口实现状态文档
-│   └── ...
-├── scripts/                    # 脚本目录
-│   └── package/               # 打包相关脚本
 ├── build.sh                    # 编译脚本
+├── CHANGELOG.md                # 版本变更记录
+├── classify_rule.yaml          # 文件分类规则
 ├── CMakeLists.txt              # 主 CMake 配置
-├── OAT.xml                     # 许可证配置
-├── version.cmake               # 版本信息
+├── CONTRIBUTING.md             # 贡献指南
+├── install_deps.sh             # 依赖安装脚本
+├── LICENSE                     # 许可证
+├── OAT.xml                     # 许可证扫描配置
+├── QUICKSTART.md               # 快速入门文档
+├── requirements.txt            # Python 依赖列表
+├── SECURITY.md                 # 安全声明
+├── Third_Party_Open_Source_Software_List.yaml  # 三方软件清单
+├── Third_Party_Open_Source_Software_Notice     # 三方软件声明
+├── version.cmake               # 版本信息（CMake）
 └── README.md                   # 本文件
 ```
 
