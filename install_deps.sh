@@ -43,6 +43,10 @@ version_ge() {
     return 0
 }
 
+version_lt() {
+    ! version_ge "$1" "$2"
+}
+
 detect_os() {
     # OS detection, supports debian (uses apt), rhel (uses dnf or yum), macos
     if [[ "$(uname -s)" == "Linux" ]]; then
@@ -104,17 +108,21 @@ install_gawk() {
 }
 
 install_python() {
-    # Python version >= 3.7.0
+    # Python version >= 3.7.0, < 3.10
     echo -e "\n==== Checking Python ===="
     local req_ver="3.7.0"
+    local max_ver="3.10.0"
     local curr_ver=""
 
     if command -v python3 &> /dev/null; then
         curr_ver=$(python3 --version 2>&1 | awk '{print $2}')
         echo "Current Python version: $curr_ver"
-        if version_ge "$curr_ver" "$req_ver"; then
+        if version_ge "$curr_ver" "$req_ver" && version_lt "$curr_ver" "$max_ver"; then
             echo "Python version meets requirements"
             return
+        elif version_ge "$curr_ver" "$max_ver"; then
+            echo "Python version $curr_ver is not supported (required: >= 3.7.0, < 3.10)"
+            exit 1
         fi
     fi
     echo "Installing Python..."
@@ -134,18 +142,18 @@ install_python() {
             fi
             ;;
         macos)
-            run_command brew install python@3.11
-            echo 'export PATH="/usr/local/opt/python@3.11/bin:$PATH"' >> ~/.zshrc
+            run_command brew install python@3.9
+            echo 'export PATH="/usr/local/opt/python@3.9/bin:$PATH"' >> ~/.zshrc
             run_command source ~/.zshrc
             ;;
     esac
 
     if command -v python3 &> /dev/null; then
         curr_ver=$(python3 --version 2>&1 | awk '{print $2}')
-        if version_ge "$curr_ver" "$req_ver"; then
+        if version_ge "$curr_ver" "$req_ver" && version_lt "$curr_ver" "$max_ver"; then
             echo "Python installed successfully ($curr_ver)"
         else
-            echo "Python version still doesn't meet requirements, please install manually"
+            echo "Python version $curr_ver does not meet requirements (required: >= 3.7.0, < 3.10), please install manually"
             exit 1
         fi
     else
