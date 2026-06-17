@@ -24,6 +24,7 @@ struct aclfftHandle_t {
     // ========== 基本配置 ==========
     int32_t rank;                       ///< 维度数 (1, 2, 或 3)
     int32_t lengths[3];                 ///< 每个维度的大小
+    int32_t stride[3];                  ///< stride大小
     int32_t batch;                      ///< 批量大小
 
     aclfftType type;                    ///< 变换类型
@@ -63,7 +64,8 @@ struct aclfftHandle_t {
           has_operator_state(false),
           is_initialized(false),
           is_destroyed(false),
-          lengths{0} {}
+          lengths{0},
+          stride{0} {}
 
     /**
      * @brief 析构函数

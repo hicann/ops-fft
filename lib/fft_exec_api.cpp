@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software; you can redistribute it and/or modify it under the terms and conditions of
+ * This program is free software; you can redistribute it and/or modify it under the terms of conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
@@ -11,71 +11,76 @@
 #include "cann_ops_fft.h"
 #include "fft_handle_impl.h"
 #include "fft_error.h"
-#include "rfft1_d.h"  // rfft1_d 算子接口
 
-/**
- * @brief 执行 C2C FFT
- *
- * @param plan Plan 句柄
- * @param idata 输入数据
- * @param odata 输出数据
- * @param direction 变换方向（ACLFFT_FORWARD 或 ACLFFT_BACKWARD）
- * @return aclfftResult 错误码
- */
+extern "C" {
+    __attribute__((weak))
+    aclfftResult aclfftExecC2C_1D(aclfftHandle, aclfftComplex*, aclfftComplex*, int);
+    __attribute__((weak))
+    aclfftResult aclfftExecC2C_2D(aclfftHandle, aclfftComplex*, aclfftComplex*, int);
+
+    __attribute__((weak))
+    aclfftResult aclfftExecR2C_1D(aclfftHandle, aclfftReal*, aclfftComplex*);
+    __attribute__((weak))
+    aclfftResult aclfftExecR2C_2D(aclfftHandle, aclfftReal*, aclfftComplex*);
+
+    __attribute__((weak))
+    aclfftResult aclfftExecC2R_1D(aclfftHandle, aclfftComplex*, aclfftReal*);
+    __attribute__((weak))
+    aclfftResult aclfftExecC2R_2D(aclfftHandle, aclfftComplex*, aclfftReal*);
+}
+
 aclfftResult aclfftExecC2C(aclfftHandle plan,
                            aclfftComplex* idata,
                            aclfftComplex* odata,
                            int direction) {
+    aclfftHandle_t* impl = plan;
+    ACLFFT_CHECK_PLAN_INITIALIZED(impl);
+    ACLFFT_CHECK_NULL(idata);
+    ACLFFT_CHECK_NULL(odata);
+    ACLFFT_CHECK_PARAM(impl->type == ACLFFT_C2C, ACLFFT_INVALID_TYPE);
+
+    if (impl->rank == 1 && aclfftExecC2C_1D)
+        return aclfftExecC2C_1D(plan, idata, odata, direction);
+    if (impl->rank == 2 && aclfftExecC2C_2D)
+        return aclfftExecC2C_2D(plan, idata, odata, direction);
+
     return ACLFFT_NOT_IMPLEMENTED;
 }
 
-/**
- * @brief 执行 R2C FFT
- *
- * 直接调用 rfft1_d 算子（aclfftRfft1D）
- */
 aclfftResult aclfftExecR2C(aclfftHandle plan,
                            aclfftReal* idata,
                            aclfftComplex* odata) {
     aclfftHandle_t* impl = plan;
-
-    // 参数验证
     ACLFFT_CHECK_PLAN_INITIALIZED(impl);
     ACLFFT_CHECK_NULL(idata);
     ACLFFT_CHECK_NULL(odata);
     ACLFFT_CHECK_PARAM(impl->type == ACLFFT_R2C, ACLFFT_INVALID_TYPE);
-    ACLFFT_CHECK_PARAM(impl->rank == 1, ACLFFT_INVALID_VALUE);
 
-    // 直接调用 rfft1_d 算子
-    const uint32_t n = impl->lengths[0];
-    const uint32_t batch = impl->batch;
+    if (impl->rank == 1 && aclfftExecR2C_1D)
+        return aclfftExecR2C_1D(plan, idata, odata);
+    if (impl->rank == 2 && aclfftExecR2C_2D)
+        return aclfftExecR2C_2D(plan, idata, odata);
 
-    // 归一化模式映射：内部使用 0-based，算子使用 1-based
-    int32_t rfft_norm = impl->normMode + 1;
-
-    aclError err = aclfftRfft1D(reinterpret_cast<float*>(idata),
-                                reinterpret_cast<float*>(odata),
-                                n, rfft_norm, batch, impl->stream);
-
-    return (err == ACL_SUCCESS) ? ACLFFT_SUCCESS : ACLFFT_EXEC_FAILED;
-}
-
-/**
- * @brief 执行 C2R FFT
- *
- * 占位实现，返回 ACLFFT_NOT_IMPLEMENTED
- */
-aclfftResult aclfftExecC2R(aclfftHandle plan,
-                           aclfftComplex* idata,
-                           aclfftReal* odata) {
     return ACLFFT_NOT_IMPLEMENTED;
 }
 
-/**
- * @brief 执行 Z2Z FFT
- *
- * 占位实现，返回 ACLFFT_NOT_IMPLEMENTED
- */
+aclfftResult aclfftExecC2R(aclfftHandle plan,
+                           aclfftComplex* idata,
+                           aclfftReal* odata) {
+    aclfftHandle_t* impl = plan;
+    ACLFFT_CHECK_PLAN_INITIALIZED(impl);
+    ACLFFT_CHECK_NULL(idata);
+    ACLFFT_CHECK_NULL(odata);
+    ACLFFT_CHECK_PARAM(impl->type == ACLFFT_C2R, ACLFFT_INVALID_TYPE);
+
+    if (impl->rank == 1 && aclfftExecC2R_1D)
+        return aclfftExecC2R_1D(plan, idata, odata);
+    if (impl->rank == 2 && aclfftExecC2R_2D)
+        return aclfftExecC2R_2D(plan, idata, odata);
+
+    return ACLFFT_NOT_IMPLEMENTED;
+}
+
 aclfftResult aclfftExecZ2Z(aclfftHandle plan,
                            aclfftDoubleComplex* idata,
                            aclfftDoubleComplex* odata,
@@ -83,22 +88,12 @@ aclfftResult aclfftExecZ2Z(aclfftHandle plan,
     return ACLFFT_NOT_IMPLEMENTED;
 }
 
-/**
- * @brief 执行 D2Z FFT
- *
- * 占位实现，返回 ACLFFT_NOT_IMPLEMENTED
- */
 aclfftResult aclfftExecD2Z(aclfftHandle plan,
                            aclfftDoubleReal* idata,
                            aclfftDoubleComplex* odata) {
     return ACLFFT_NOT_IMPLEMENTED;
 }
 
-/**
- * @brief 执行 Z2D FFT
- *
- * 占位实现，返回 ACLFFT_NOT_IMPLEMENTED
- */
 aclfftResult aclfftExecZ2D(aclfftHandle plan,
                            aclfftDoubleComplex* idata,
                            aclfftDoubleReal* odata) {

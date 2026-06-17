@@ -103,14 +103,18 @@ sudo ./cann-950-ops-fft_9.0.0_linux-*.run --upgrade
 
 完整的接口实现状态请参考 [接口实现文档](docs/implementation.md)。
 
-**已实现的接口（7 个）：**
+**已实现的接口（11 个）：**
 
 | 类别 | 接口 | 功能 |
 |------|------|------|
 | Plan 创建 | `aclfftCreate` | 创建空的 FFT Plan 句柄 |
 | Plan 创建 | `aclfftPlan1d` | 创建并初始化一维 FFT Plan |
+| Plan 创建 | `aclfftPlan2d` | 创建并初始化二维 FFT Plan |
 | Plan 初始化 | `aclfftMakePlan1d` | 初始化一维 FFT Plan |
+| Plan 初始化 | `aclfftMakePlan2d` | 初始化二维 FFT Plan |
+| 执行接口 | `aclfftExecC2C` | 执行复数到复数的 FFT |
 | 执行接口 | `aclfftExecR2C` | 执行实数到复数的一维 FFT |
+| 执行接口 | `aclfftExecC2R` | 执行复数到实数的 IFFT |
 | Plan 管理 | `aclfftDestroy` | 销毁 FFT Plan 并释放资源 |
 | Plan 管理 | `aclfftSetStream` | 设置 Plan 的执行流 |
 | 工具接口 | `aclfftGetErrorString` | 获取错误码的描述字符串 |
@@ -121,6 +125,9 @@ sudo ./cann-950-ops-fft_9.0.0_linux-*.run --upgrade
 
 | 算子名称 | 描述 | 状态 |
 |---------|------|------|
+| [fft1_d](src/fft1_d/) | 一维复数FFT运算 | ✅ 已实现 |
+| [fft2_d](src/fft2_d/) | 二维复数FFT运算 | ✅ 已实现 |
+| [irfft1_d](src/irfft1_d/) | 一维复数到实数IFFT运算 | ✅ 已实现 |
 | [rfft1_d](src/rfft1_d/) | 一维实数FFT运算 | ✅ 已实现 |
 
 更多算子正在持续开发中...
@@ -130,7 +137,7 @@ sudo ./cann-950-ops-fft_9.0.0_linux-*.run --upgrade
 | SoC 型号 | SOC_VERSION | 支持状态 |
 |---------|-------------|---------|
 | Ascend950 | ascend950dt_9595 | ✅ 默认支持 |
-| Ascend910B | ascend910b3 | ❌ 暂不支持 |
+| Ascend910B | ascend910b | ✅ 已支持 |
 | Ascend910_93 | ascend910_93 | ❌ 暂不支持 |
 | Ascend910 | ascend910 | ❌ 暂不支持 |
 | Ascend310P | ascend310p | ❌ 暂不支持 |
@@ -186,16 +193,40 @@ ops-fft/
 │       ├── ops_fft/           # ops-fft 安装脚本
 │       └── package.py         # 打包入口
 ├── src/                        # 算子层实现
-│   ├── rfft1_d/               # Rfft1_d 算子（Cooley-Tukey）
-│   │   ├── rfft1_d.cpp        # Host + Kernel 实现
-│   │   ├── rfft1_d.h          # 算子接口
-│   │   ├── arch35/            # 架构特定代码
-│   │   │   ├── rfft1_d_fast.h
-│   │   │   └── rfft1_d_tilingdata.h
-│   │   ├── tests/             # 算子测试
-│   │   │   ├── rfft1_d_test.h
-│   │   │   └── rfft1_d_test.cpp
-│   │   └── CMakeLists.txt
+│   ├── common/                 # 公共代码（host/kernel 工具）
+│   │   ├── fft_common_core.h   # Host 侧公共头文件
+│   │   ├── fft_common_kernel.h # Kernel 侧公共头文件
+│   │   └── kernel/             # Kernel 侧公共实现
+│   ├── fft1_d/                 # 一维复数 FFT 算子
+│   │   ├── fft1_d.h            # 算子接口
+│   │   ├── arch32/             # Ascend910B 架构实现
+│   │   │   ├── dft/            # DFT 实现
+│   │   │   ├── fft_b/          # FFT-B 实现
+│   │   │   ├── fft_n/          # FFT-N 实现
+│   │   │   └── fft_stride/     # Stride FFT 实现
+│   │   ├── arch35/             # Ascend950 架构实现
+│   │   │   └── c2c/            # C2C 实现
+│   │   └── tests/              # 算子测试
+│   ├── fft2_d/                 # 二维复数 FFT 算子
+│   │   ├── fft2_d.h            # 算子接口
+│   │   ├── arch32/             # Ascend910B 架构实现
+│   │   │   └── dd/             # DD 实现
+│   │   └── tests/              # 算子测试
+│   ├── irfft1_d/               # 一维复数到实数 IFFT 算子
+│   │   ├── irfft1_d.h          # 算子接口
+│   │   ├── arch32/             # Ascend910B 架构实现
+│   │   │   └── dft/            # DFT 实现
+│   │   ├── arch35/             # Ascend950 架构实现
+│   │   │   └── dft/            # DFT 实现
+│   │   └── tests/              # 算子测试
+│   ├── rfft1_d/                # 一维实数 FFT 算子
+│   │   ├── rfft1_d.h           # 算子接口
+│   │   ├── arch32/             # Ascend910B 架构实现
+│   │   │   └── dft/            # DFT 实现
+│   │   ├── arch35/             # Ascend950 架构实现
+│   │   │   ├── fast_dft/       # 快速 DFT 实现
+│   │   │   └── fft/            # FFT 实现
+│   │   └── tests/              # 算子测试
 │   └── CMakeLists.txt
 ├── tests/                      # 测试框架
 │   ├── test_common.h          # 测试框架头文件

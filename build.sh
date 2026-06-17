@@ -74,6 +74,7 @@ TEST_TIMEOUT=300  # 默认测试超时时间（秒）
 BUILD_OUT_DIR=build_out
 VERBOSE=""
 CANN_3RD_LIB_PATH="${SCRIPT_DIR}/third_party"
+TEST_FILTER=""  # 测试过滤器（逗号分隔的算子名称，如 "fft1_d"）
 
 # 设置 _ASCEND_INSTALL_PATH（优先级：ASCEND_INSTALL_PATH > ASCEND_HOME_PATH > 默认值）
 if [ -n "$ASCEND_INSTALL_PATH" ]; then
@@ -122,6 +123,34 @@ get_soc_version() {
             ;;
     esac
 }
+
+# SoC 名称映射到 NPU 架构标识（用于 CMake arch 目录选择）
+soc_to_npu_arch() {
+    local soc_name="$1"
+    local soc_lower=$(echo "$soc_name" | tr '[:upper:]' '[:lower:]')
+
+    case "$soc_lower" in
+        "ascend950")
+            echo "dav-3510"
+            ;;
+        "ascend910b"|"ascend910_b")
+            echo "dav-2201"
+            ;;
+        "ascend910_93")
+            echo "dav-2201"
+            ;;
+        "ascend910")
+            echo "dav-2101"
+            ;;
+        "ascend310p"|"ascend310_p")
+            echo "dav-2101"
+            ;;
+        *)
+            echo "dav-3510"
+            ;;
+    esac
+}
+
 
 # 检查 ASCEND 环境变量
 check_ascend_env() {
@@ -200,6 +229,7 @@ Usage: $(basename "$0") [OPTIONS]
 Options:
   --ops=OP_LIST       Specify operators to build (comma-separated)
   --run               Run tests after build
+  --test=TEST_FILTER  Run only specified test(s) (comma-separated, e.g., fft1_d)
   --pkg               Build package (.run file)
   --soc=SOC           Target SoC model (default: Ascend950, case-insensitive)
   -j[N]               Number of compile threads (default: 8), e.g., -j16
@@ -308,6 +338,7 @@ build_project() {
         cmake_args+=(-DENABLED_OPERATORS="${BUILD_OPERATORS}")
         log_info "Enabled operators: ${BUILD_OPERATORS}"
     else
+        cmake_args+=(-DENABLED_OPERATORS="")
         log_info "All operators enabled"
     fi
 
@@ -320,10 +351,12 @@ build_project() {
         log_info "Test compilation: DISABLED"
     fi
 
-    # 如果需要打包，启用打包
+    # 如果需要打包，启用打包（显式传递 OFF 防止缓存）
     if [ "$ENABLE_PACKAGE" = true ]; then
         cmake_args+=(-DENABLE_PACKAGE=ON)
         log_info "Package generation: ENABLED"
+    else
+        cmake_args+=(-DENABLE_PACKAGE=OFF)
     fi
 
     # 传递 SoC 型号和 ASCEND 路径
@@ -331,10 +364,13 @@ build_project() {
     # ASCEND_SOC: init_env.cmake 用于映射 NPU 架构
     SOC_NAME_LOWER=$(echo "${SOC_NAME}" | tr '[:upper:]' '[:lower:]')
     cmake_args+=(-DSOC_VERSION="${SOC_NAME_LOWER}")
+    NPU_ARCH=$(soc_to_npu_arch "$SOC_NAME")
+    cmake_args+=(-DASCEND_NPU_ARCH="${NPU_ARCH}")
     cmake_args+=(-DASCEND_SOC="${SOC_NAME}")
     cmake_args+=(-DASCEND_HOME_PATH="${ASCEND_HOME_PATH}")
     log_info "Target SoC: ${SOC_NAME}"
     log_info "  -> SOC_VERSION: ${SOC_NAME_LOWER} (for ASC compiler)"
+    log_info "  -> ASCEND_NPU_ARCH: ${NPU_ARCH} (for arch dir selection)"
     log_info "  -> ASCEND_SOC: ${SOC_NAME} (for NPU arch mapping)"
     log_info "ASCEND path: ${ASCEND_HOME_PATH}"
 
@@ -397,10 +433,14 @@ run_tests() {
         exit 1
     fi
 
-    log_info "Found test executable, starting..."
-
     # 临时禁用 set -e，手动处理错误
     set +e
+    if [ -n "$TEST_FILTER" ]; then
+        log_info "Test filter: ${TEST_FILTER}"
+        export OPS_FFT_TEST_FILTER="${TEST_FILTER}"
+    fi
+
+    export OPS_FFT_TEST_DATA_ROOT="$SCRIPT_DIR/src"
     timeout -k 1s ${TEST_TIMEOUT}s ./tests/all_ops_test 2>&1
     test_result=$?
     set -e
@@ -411,11 +451,10 @@ run_tests() {
         log_error "Test timeout (${TEST_TIMEOUT}s exceeded)"
         exit 1
     elif [ $test_result -ne 0 ]; then
-        log_error "Some tests failed (exit code: $test_result)"
+        log_error "NPU test failed (exit code: $test_result)"
         exit 1
-    else
-        log_success "All tests passed"
     fi
+    log_success "All tests passed"
 }
 
 # 解析命令行参数
@@ -428,6 +467,11 @@ parse_arguments() {
                 shift
                 ;;
             --run)
+                RUN_TESTS=true
+                shift
+                ;;
+            --test=*)
+                TEST_FILTER="${1#*=}"
                 RUN_TESTS=true
                 shift
                 ;;

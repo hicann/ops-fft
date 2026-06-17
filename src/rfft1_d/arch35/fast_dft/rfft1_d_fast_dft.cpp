@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * This program is free software; you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
@@ -8,17 +8,12 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-/*!
- * \file rfft1_d.cpp
- * \brief
- */
-
 #include <cmath>
 #include <numeric>
 #include <vector>
 
-#include "arch35/rfft1_d_tilingdata.h"
-#include "arch35/rfft1_d_fast.h"
+#include "rfft1_d_tilingdata.h"
+#include "rfft1_d_fast.h"
 #include "platform/platform_info.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "log/log.h"
@@ -27,7 +22,7 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matrix/matmul/matmul.h"
 #include "lib/matmul_intf.h"
-#include "rfft1_d.h"
+#include "../../rfft1_d.h"
 
 static const uint32_t LAST_FACTOR = 64;
 static const uint32_t COMPLEX_PART = 2;
@@ -41,11 +36,9 @@ static const uint32_t TWIDDLE_MATRICES_AMOUNT = 2;
 static const uint32_t DFT_BORDER_VALUE = 4096;
 static const uint32_t DFT_OFFSETS_COUNT = 3;
 static const uint32_t RFFT_SYMMETRY_DIVISOR = 2;
-// NORM_VALUES
 static const uint32_t BACKWARD = 1;
 static const uint32_t FORWARD = 2;
 
-// ACL 错误检查宏
 #define CHECK_ACL(call)                                              \
     do {                                                             \
         aclError err = (call);                                       \
@@ -56,7 +49,6 @@ static const uint32_t FORWARD = 2;
         }                                                            \
     } while (0)
 
-// 自定义删除器，安全处理空指针
 struct AclrtFreeDeleter {
     void operator()(void* ptr) const {
         if (ptr != nullptr) {
@@ -205,7 +197,7 @@ static int SetTilingData(Rfft1DTilingData &tiling, uint32_t n, int32_t norm, uin
     }
 
     auto roundUpBlock = [](const uint32_t& src, const uint32_t blockLen) {
-        return src != 0 ? src + (blockLen - src % blockLen) % blockLen : blockLen;
+        return src != 0 ? src + (blockLen - src % (blockLen ? blockLen : 1)) % (blockLen ? blockLen : 1) : blockLen;
     };
 
     const uint32_t tailSize = COMPLEX_PART * (((n / RFFT_SYMMETRY_DIVISOR) + 1) - (factors[2] / COMPLEX_PART) * (n / factors[2]));
@@ -218,8 +210,8 @@ static int SetTilingData(Rfft1DTilingData &tiling, uint32_t n, int32_t norm, uin
     tiling.lengthPad = lengthPad;
     tiling.outLength = (n / RFFT_SYMMETRY_DIVISOR) + 1;
     tiling.tailSize = tailSize;
-    tiling.batchesPerCore = batches / coreNum;
-    tiling.leftOverBatches = batches % coreNum;
+    tiling.batchesPerCore = batches / (coreNum ? coreNum : 1);
+    tiling.leftOverBatches = batches % (coreNum ? coreNum : 1);
     tiling.tmpLenPerBatch = tmpLenPerBatch;
     tiling.tmpSizePerBatch = tmpLenPerBatch * SIZE_PER_BATCH_MULTIPLIER;
     tiling.normal = norm;
@@ -292,9 +284,9 @@ static std::vector<float> Rfft1DDftGen(int64_t fftLength, int64_t norm)
     }
 }
 
-extern "C" __global__ __aicore__ void rfft1_d(GM_ADDR x, GM_ADDR dft, GM_ADDR y, GM_ADDR workspace, Rfft1DTilingData tilingData)
+extern "C" __global__ __aicore__ void rfft1_d_fast_dft(GM_ADDR x, GM_ADDR dft, GM_ADDR y, GM_ADDR workspace, Rfft1DTilingData tilingData)
 {
-    if (tilingData.length <= DFT_BORDER_VALUE) // FastDFT for length <= 4096
+    if (tilingData.length <= DFT_BORDER_VALUE)
     {
         uint32_t* factorsP = const_cast<uint32_t*>(tilingData.factors);
 
@@ -313,6 +305,11 @@ extern "C" __global__ __aicore__ void rfft1_d(GM_ADDR x, GM_ADDR dft, GM_ADDR y,
 
 extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, uint32_t batches, void *stream)
 {
+    if (n > DFT_BORDER_VALUE) {
+        std::cerr << "[ops-fft] aclfftRfft1D: n=" << n << " exceeds FastDFT limit (" << DFT_BORDER_VALUE << "), not implemented" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
+
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = ascendcPlatform->GetCoreNumAic();
 
@@ -329,34 +326,26 @@ extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, u
     void *dev_y = nullptr;
     void *workspace_ptr = nullptr;
 
-    // Allocate device memory for inputs and output
     CHECK_ACL(aclrtMalloc(&dev_x, inputSize, ACL_MEM_MALLOC_HUGE_FIRST));
     CHECK_ACL(aclrtMalloc(&dev_dft, dftSize, ACL_MEM_MALLOC_HUGE_FIRST));
     CHECK_ACL(aclrtMalloc(&dev_y, outputSize, ACL_MEM_MALLOC_HUGE_FIRST));
     CHECK_ACL(aclrtMalloc(&workspace_ptr, sysWorkspaceSize, ACL_MEM_MALLOC_HUGE_FIRST));
-    // 智能指针指定删除器，在unique_ptr析构时自动调用指定的函数释放资源
+
     std::unique_ptr<void, AclrtFreeDeleter> d_x_guard(dev_x);
     std::unique_ptr<void, AclrtFreeDeleter> d_dft_guard(dev_dft);
     std::unique_ptr<void, AclrtFreeDeleter> d_y_guard(dev_y);
     std::unique_ptr<void, AclrtFreeDeleter> workspace_ptr_guard(workspace_ptr);
 
-    // Copy inputs to device
     CHECK_ACL(aclrtMemcpy(dev_x, inputSize, x, inputSize, ACL_MEMCPY_HOST_TO_DEVICE));
     CHECK_ACL(aclrtMemcpy(dev_dft, dftSize, dft.data(), dftSize, ACL_MEMCPY_HOST_TO_DEVICE));
 
     Rfft1DTilingData tilingData;
-
-    // set tiling data
     aclError ret = SetTilingData(tilingData, n, norm, coreNum, batches);
 
-    // Call host-side launcher (must be implemented to actually launch kernel)
-    rfft1_d<<<coreNum, nullptr, stream>>>((__gm__ uint8_t *)dev_x, (__gm__ uint8_t *)dev_dft, (__gm__ uint8_t *)dev_y, (__gm__ uint8_t *)workspace_ptr, tilingData);
+    rfft1_d_fast_dft<<<coreNum, nullptr, stream>>>((__gm__ uint8_t *)dev_x, (__gm__ uint8_t *)dev_dft, (__gm__ uint8_t *)dev_y, (__gm__ uint8_t *)workspace_ptr, tilingData);
 
     CHECK_ACL(aclrtSynchronizeStream(stream));
-
-    // Copy device output back to host
     CHECK_ACL(aclrtMemcpy(y, outputSize, dev_y, outputSize, ACL_MEMCPY_DEVICE_TO_HOST));
 
     return ACL_SUCCESS;
 }
-

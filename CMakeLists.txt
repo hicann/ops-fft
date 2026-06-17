@@ -74,6 +74,8 @@ target_include_directories(${OPS_FFT} PUBLIC
     ${ASCEND_HOME_PATH}/pkg_inc/op_common/
     ${ASCEND_HOME_PATH}/pkg_inc/base/
     ${ASCEND_HOME_PATH}/pkg_inc/
+    ${ASCEND_HOME_PATH}/include
+    ${ASCEND_HOME_PATH}/include/op_common/
 )
 
 # 设置库链接目录（目标属性，不影响其他目标）

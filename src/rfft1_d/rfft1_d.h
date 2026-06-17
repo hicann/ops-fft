@@ -31,7 +31,7 @@ extern "C" {
 #endif
 
 /**
- * @brief rfft1_d 算子接口 - 实数到复数的一维 FFT
+ * @brief rfft1_d FastDFT 算子接口 - 实数到复数的一维 FFT (arch35 FastDFT 实现)
  *
  * @param x 输入实数数组
  * @param y 输出复数数组（实部和虚部交错存储）
@@ -42,6 +42,12 @@ extern "C" {
  * @return ACL 错误码
  */
 ACLFFT_API aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, uint32_t batches, void *stream);
+
+ACLFFT_API aclError aclfftRfft1DFft(float *x, float *y, uint32_t n, int32_t norm,
+                                     uint32_t batches, int isForward, void *stream);
+
+ACLFFT_API aclError aclfftRfft1DDft(float *x, float *y, uint32_t n, int32_t norm,
+                                     uint32_t batches, int isForward, void *stream);
 
 #ifdef __cplusplus
 }

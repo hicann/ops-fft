@@ -66,17 +66,59 @@
 │               └── ...                                 # 其他脚本
 ├── src                                                 # 源码目录
 │   ├── CMakeLists.txt                                  # 算子编译入口
-│   ├── rfft1_d                                         # rfft1_d算子目录
+│   ├── common                                          # 算子公共代码
+│   │   ├── fft_common_core.h                           # Host 侧公共头文件
+│   │   ├── fft_common_kernel.h                         # Kernel 侧公共头文件
+│   │   └── kernel                                      # Kernel 侧公共实现
+│   ├── fft1_d                                          # fft1_d 算子目录
 │   │   ├── CMakeLists.txt                              # 算子编译配置文件
-│   │   ├── rfft1_d.cpp                                 # 算子实现文件
-│   │   ├── rfft1_d.h                                   # 算子头文件
-│   │   ├── arch35                                      # Ascend950特有算子代码
-│   │   │   ├── rfft1_d_fast.h                          # 快速算法实现
-│   │   │   └── rfft1_d_tilingdata.h                    # Tiling数据定义
+│   │   ├── fft1_d.h                                    # 算子头文件
+│   │   ├── arch32                                      # Ascend910B 架构实现
+│   │   │   ├── dft                                     # DFT 实现
+│   │   │   ├── fft_b                                   # FFT-B 实现
+│   │   │   ├── fft_n                                   # FFT-N 实现
+│   │   │   └── fft_stride                              # Stride FFT 实现
+│   │   ├── arch35                                      # Ascend950 架构实现
+│   │   │   └── c2c                                     # C2C 实现
 │   │   └── tests                                       # 算子测试用例目录
-│   │       ├── rfft1_d_test.cpp
-│   │       └── rfft1_d_test.h
-│   └── common                                          # 算子公共代码
+│   │       ├── fft1_d_test.h
+│   │       ├── fft1_d_test_arch32.cpp
+│   │       ├── fft1_d_test_arch35.cpp
+│   │       └── fft1_d_data                             # 测试数据目录
+│   ├── fft2_d                                          # fft2_d 算子目录
+│   │   ├── CMakeLists.txt
+│   │   ├── fft2_d.h
+│   │   ├── arch32                                      # Ascend910B 架构实现
+│   │   │   └── dd                                      # DD 实现
+│   │   └── tests
+│   │       ├── fft2_d_test.h
+│   │       ├── fft2_d_test_arch32.cpp
+│   │       └── fft2_d_data
+│   ├── irfft1_d                                        # irfft1_d 算子目录
+│   │   ├── CMakeLists.txt
+│   │   ├── irfft1_d.h
+│   │   ├── arch32                                      # Ascend910B 架构实现
+│   │   │   └── dft
+│   │   ├── arch35                                      # Ascend950 架构实现
+│   │   │   └── dft
+│   │   └── tests
+│   │       ├── irfft1_d_test.h
+│   │       ├── irfft1_d_test_arch32.cpp
+│   │       ├── irfft1_d_test_arch35.cpp
+│   │       └── irfft1_d_data
+│   └── rfft1_d                                         # rfft1_d 算子目录
+│       ├── CMakeLists.txt
+│       ├── rfft1_d.h
+│       ├── arch32                                      # Ascend910B 架构实现
+│       │   └── dft
+│       ├── arch35                                      # Ascend950 架构实现
+│       │   ├── fast_dft
+│       │   └── fft
+│       └── tests
+│           ├── rfft1_d_test.h
+│           ├── rfft1_d_test_arch32.cpp
+│           ├── rfft1_d_test_arch35.cpp
+│           └── rfft1_d_data
 ├── tests                                               # 项目级测试目录
 │   ├── CMakeLists.txt                                  # 测试编译配置
 │   ├── all_tests.cpp.in                                # 测试入口模板
@@ -100,7 +142,10 @@
 | 目录/文件 | 说明 |
 | :--- | :--- |
 | `src/` | 算子源码目录，包含所有算子的实现代码 |
-| `src/rfft1_d/` | rfft1_d算子目录，实现一维实数FFT运算 |
+| `src/fft1_d/` | fft1_d 算子目录，实现一维复数 FFT 运算 |
+| `src/fft2_d/` | fft2_d 算子目录，实现二维复数 FFT 运算 |
+| `src/irfft1_d/` | irfft1_d 算子目录，实现一维复数到实数 IFFT 运算 |
+| `src/rfft1_d/` | rfft1_d 算子目录，实现一维实数 FFT 运算 |
 | `src/common/` | 算子公共代码，包含通用工具函数、迭代器、内存管理等 |
 | `include/` | API头文件目录 |
 | `lib/` | FFT库实现目录，提供Plan/Exec/Stream等接口 |
@@ -135,13 +180,22 @@
 ```
 ${op_name}/                              # 算子名的小写下划线形式
 ├── CMakeLists.txt                       # 算子编译配置文件
-├── ${op_name}_kernel.cpp                # Kernel实现文件(可自定义文件名)
-├── ${op_name}_host.cpp                  # Host侧代码(可自定义文件名)
-├── arch35/                              # Ascend950特有实现
-│   └── ${op_name}_struct.h              # 算子结构定义(可自定义文件名)
+├── ${op_name}.h                         # 算子接口头文件
+├── arch32/                              # Ascend910B 架构实现
+│   └── ${impl}/                         # 具体实现目录（如 dft, fft_b 等）
+│       ├── ${op_name}_${impl}.cpp       # Host 侧实现
+│       └── ${op_name}_${impl}_kernel.h  # Kernel 实现
+├── arch35/                              # Ascend950 架构实现
+│   └── ${impl}/                         # 具体实现目录
+│       ├── ${op_name}_${impl}.cpp       # Host 侧实现
+│       └── ${op_name}_${impl}_kernel.h  # Kernel 实现
 └── tests/                               # 测试用例目录
-    ├── ${op_name}_test.cpp              # 算子测试用例
-    └── ${op_name}_test.h                # 测试头文件
+    ├── ${op_name}_test.h                # 测试头文件
+    ├── ${op_name}_test_arch32.cpp       # arch32 测试用例
+    ├── ${op_name}_test_arch35.cpp       # arch35 测试用例
+    └── ${op_name}_data/                 # 测试数据目录
+        ├── gen_data.py                  # 测试数据生成脚本
+        └── compare_data.py              # 测试数据比对脚本
 ```
 
 > **说明**：不同算子的交付件可能有差异，请以实际目录为准。

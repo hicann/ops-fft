@@ -40,11 +40,12 @@ aclfftResult aclfftCreate(aclfftHandle* plan) {
  * @param batch 批量大小
  * @return aclfftResult 错误码
  */
-aclfftResult aclfftPlan1d(aclfftHandle* plan, int nx, aclfftType type, int batch) {
+aclfftResult aclfftPlan1d(aclfftHandle* plan, int nx, aclfftType type, int batch, int dimType) {
     // 参数验证
     ACLFFT_CHECK_NULL(plan);
     ACLFFT_CHECK_PARAM(nx > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(batch > 0, ACLFFT_INVALID_SIZE);
+    ACLFFT_CHECK_PARAM(dimType == ACLFFT_HORIZONTAL || dimType == ACLFFT_VERTICAL, ACLFFT_INVALID_VALUE);
     ACLFFT_CHECK_PARAM(type >= ACLFFT_C2C && type <= ACLFFT_Z2D, ACLFFT_INVALID_TYPE);
 
     // 创建 Plan
@@ -55,8 +56,7 @@ aclfftResult aclfftPlan1d(aclfftHandle* plan, int nx, aclfftType type, int batch
 
     // 初始化 Plan
     size_t workSize;
-    res = aclfftMakePlan1d(*plan, nx, type, batch, &workSize);
-    // 如果初始化失败，清理 Plan
+    res = aclfftMakePlan1d(*plan, nx, type, batch, dimType, &workSize);
     if (res != ACLFFT_SUCCESS) {
         aclfftDestroy(*plan);
         *plan = nullptr;
@@ -68,11 +68,12 @@ aclfftResult aclfftPlan1d(aclfftHandle* plan, int nx, aclfftType type, int batch
 /**
  * @brief 创建并初始化 2D FFT Plan
  */
-aclfftResult aclfftPlan2d(aclfftHandle* plan, int nx, int ny, aclfftType type) {
+aclfftResult aclfftPlan2d(aclfftHandle* plan, int batch, int nx, int ny, aclfftType type) {
     // 参数验证
     ACLFFT_CHECK_NULL(plan);
     ACLFFT_CHECK_PARAM(nx > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(ny > 0, ACLFFT_INVALID_SIZE);
+    ACLFFT_CHECK_PARAM(batch > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(type >= ACLFFT_C2C && type <= ACLFFT_Z2D, ACLFFT_INVALID_TYPE);
 
     // 创建 Plan
@@ -83,7 +84,7 @@ aclfftResult aclfftPlan2d(aclfftHandle* plan, int nx, int ny, aclfftType type) {
 
     // 初始化 Plan
     size_t workSize;
-    res = aclfftMakePlan2d(*plan, nx, ny, type, &workSize);
+    res = aclfftMakePlan2d(*plan, batch, nx, ny, type, &workSize);
     // 如果初始化失败，清理 Plan
     if (res != ACLFFT_SUCCESS) {
         aclfftDestroy(*plan);

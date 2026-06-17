@@ -20,6 +20,7 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matrix/matmul/matmul.h"
 #include "lib/matmul_intf.h"
+#include "kernel/common_func.h"
 
 #define CUBE_DFT
 using DTYPE_X = float;

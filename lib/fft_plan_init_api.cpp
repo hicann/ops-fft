@@ -70,13 +70,14 @@ static void calculate_data_sizes(aclfftHandle_t* plan) {
  * @return aclfftResult 错误码
  */
 aclfftResult aclfftMakePlan1d(aclfftHandle plan, int nx, aclfftType type, int batch,
-                              size_t* workSize) {
+                              int dimType, size_t* workSize) {
     aclfftHandle_t* impl = plan;
 
     // 参数验证
     ACLFFT_CHECK_PLAN_NOT_INITIALIZED(impl);
     ACLFFT_CHECK_PARAM(nx > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(batch > 0, ACLFFT_INVALID_SIZE);
+    ACLFFT_CHECK_PARAM(dimType == ACLFFT_HORIZONTAL || dimType == ACLFFT_VERTICAL, ACLFFT_INVALID_VALUE);
     ACLFFT_CHECK_PARAM(type >= ACLFFT_C2C && type <= ACLFFT_Z2D, ACLFFT_INVALID_TYPE);
 
     // 设置基本参数
@@ -87,6 +88,13 @@ aclfftResult aclfftMakePlan1d(aclfftHandle plan, int nx, aclfftType type, int ba
 
     // 计算数据大小
     calculate_data_sizes(impl);
+
+    if (dimType == ACLFFT_VERTICAL) {
+        impl->batch = 1;
+        impl->stride[0] = batch;
+    } else {
+        impl->stride[0] = 1;
+    }
 
     // 返回工作空间大小（暂时设为 0）
     if (workSize != nullptr) {
@@ -101,13 +109,34 @@ aclfftResult aclfftMakePlan1d(aclfftHandle plan, int nx, aclfftType type, int ba
 
 /**
  * @brief 初始化 2D FFT Plan
- *
- * 占位实现，返回 ACLFFT_NOT_IMPLEMENTED
  */
-aclfftResult aclfftMakePlan2d(aclfftHandle plan, int nx, int ny, aclfftType type,
+aclfftResult aclfftMakePlan2d(aclfftHandle plan, int batch, int nx, int ny, aclfftType type,
                               size_t* workSize) {
-    // 暂不实现
-    return ACLFFT_NOT_IMPLEMENTED;
+    aclfftHandle_t* impl = plan;
+
+    ACLFFT_CHECK_PLAN_NOT_INITIALIZED(impl);
+    ACLFFT_CHECK_PARAM(nx > 0, ACLFFT_INVALID_SIZE);
+    ACLFFT_CHECK_PARAM(ny > 0, ACLFFT_INVALID_SIZE);
+    ACLFFT_CHECK_PARAM(batch > 0, ACLFFT_INVALID_SIZE);
+    ACLFFT_CHECK_PARAM(type >= ACLFFT_C2C && type <= ACLFFT_Z2D, ACLFFT_INVALID_TYPE);
+
+    impl->rank = 2;
+    impl->lengths[0] = nx;
+    impl->lengths[1] = ny;
+    impl->batch = batch;
+    impl->type = type;
+    impl->stride[0] = 1;
+    impl->stride[1] = 1;
+
+    calculate_data_sizes(impl);
+
+    if (workSize != nullptr) {
+        *workSize = 0;
+    }
+
+    impl->is_initialized = true;
+
+    return ACLFFT_SUCCESS;
 }
 
 /**

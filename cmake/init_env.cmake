@@ -69,6 +69,10 @@ endmacro()
 
 # 3. 发现算子
 macro(_discover_operators)
+    # 清空变量（防止多次 configure 时累积）
+    set(OPERATOR_DIRS "")
+    set(BUILD_OPERATORS "")
+
     # 扫描 src 目录
     file(GLOB OPS RELATIVE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/*)
     foreach(OP ${OPS})

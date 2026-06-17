@@ -26,6 +26,16 @@ message(STATUS "==========================================")
 message(STATUS "Registering operators...")
 message(STATUS "==========================================")
 
+# 首先把所有算子的 include path 加入（包括未启用的算子）
+# 这样 fft_exec_api.cpp 可以无条件 include 所有算子头文件
+file(GLOB ALL_OP_DIRS RELATIVE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/*)
+foreach(OP_DIR ${ALL_OP_DIRS})
+    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/src/${OP_DIR})
+        target_include_directories(${OPS_FFT} PRIVATE ${CMAKE_SOURCE_DIR}/src/${OP_DIR})
+    endif()
+endforeach()
+
+# 编译启用的算子
 foreach(OP ${BUILD_OPERATORS})
     if(EXISTS ${CMAKE_SOURCE_DIR}/src/${OP}/CMakeLists.txt)
         add_subdirectory(${OP})

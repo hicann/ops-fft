@@ -23,14 +23,14 @@
 #
 # 参数:
 #   NAME        - 算子名称 (必需)
-#   ARCH_DIR    - 架构特定目录名 (可选，默认: arch35)
-#
-# 使用示例:
-#   register_operator(NAME add ARCH_DIR arch35)
+#   ARCH_DIR    - 架构特定目录名 (可选，自动根据SoC选择)
 #
 # 说明:
 #   - 自动收集当前目录下所有 .cpp 文件
-#   - 自动收集 ARCH_DIR 目录下所有 .cpp 文件并设置为 ASC 语言
+#   - 根据 ASCEND_NPU_ARCH 自动选择 arch 目录:
+#     dav-3510 (Ascend950) -> arch35
+#     dav-2201 (Ascend910B) -> arch32
+#   - ARCH_DIR 参数仍可手动覆盖自动选择
 ##############################################################################
 function(register_operator)
     # 解析参数
@@ -46,10 +46,29 @@ function(register_operator)
         message(FATAL_ERROR "register_operator: NAME parameter is required")
     endif()
 
-    # 设置默认架构目录
+    # 根据 ASCEND_NPU_ARCH 自动选择架构目录
     if(NOT ARG_ARCH_DIR)
-        set(ARG_ARCH_DIR "arch35")
+        if("${ASCEND_NPU_ARCH}" STREQUAL "dav-3510")
+            set(ARG_ARCH_DIR "arch35")
+        elseif("${ASCEND_NPU_ARCH}" STREQUAL "dav-2201")
+            set(ARG_ARCH_DIR "arch32")
+        else()
+            set(ARG_ARCH_DIR "arch35")
+        endif()
     endif()
+
+    # 检查 arch 目录是否存在
+    set(ARCH_DIR_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${ARG_ARCH_DIR}")
+    if(NOT EXISTS "${ARCH_DIR_PATH}")
+        message(STATUS "  Operator: ${ARG_NAME} - SKIPPED (no ${ARG_ARCH_DIR} directory for ${ASCEND_NPU_ARCH})")
+        set(OP_${ARG_NAME}_SKIPPED TRUE PARENT_SCOPE)
+        # 即使跳过，也加入算子主目录的 include path（让 fft_exec_api.cpp 能找到头文件）
+        target_include_directories(${OPS_FFT} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+        return()
+    endif()
+    set(OP_${ARG_NAME}_SKIPPED FALSE PARENT_SCOPE)
+
+    message(STATUS "  Operator: ${ARG_NAME}, ARCH_DIR: ${ARG_ARCH_DIR} (NPU: ${ASCEND_NPU_ARCH})")
 
     # 算子名称转大写
     string(TOUPPER ${ARG_NAME} OP_UPPER)
@@ -61,7 +80,7 @@ function(register_operator)
     file(GLOB CPP_SOURCES "${OP_SOURCE_DIR}/*.cpp")
 
     # 收集架构目录下的所有 .cpp 文件（非递归）
-    file(GLOB ARCH_SOURCES "${OP_SOURCE_DIR}/${ARG_ARCH_DIR}/*.cpp")
+    file(GLOB_RECURSE ARCH_SOURCES "${OP_SOURCE_DIR}/${ARG_ARCH_DIR}/*.cpp")
 
     # 合并所有源文件
     set(ALL_SOURCES ${CPP_SOURCES} ${ARCH_SOURCES})
@@ -79,16 +98,22 @@ function(register_operator)
         target_sources(${OPS_FFT} PRIVATE ${ALL_SOURCES})
     endif()
 
-    # 添加算子特定的包含目录
+    # 添加算子特定的包含目录（主目录 + arch目录及其子目录）
+    # 递归收集arch目录下的所有子目录作为include path
+    file(GLOB_RECURSE ARCH_INC_DIRS "${OP_SOURCE_DIR}/${ARG_ARCH_DIR}/*.h")
+    foreach(inc_file ${ARCH_INC_DIRS})
+        get_filename_component(inc_dir ${inc_file} DIRECTORY)
+        list(APPEND ARCH_INCLUDE_DIRS ${inc_dir})
+    endforeach()
+    list(REMOVE_DUPLICATES ARCH_INCLUDE_DIRS)
+
     target_include_directories(${OPS_FFT} PRIVATE
         ${OP_SOURCE_DIR}
         ${OP_SOURCE_DIR}/${ARG_ARCH_DIR}
+        ${ARCH_INCLUDE_DIRS}
     )
 
-    # 添加算子特定的编译定义
-    target_compile_definitions(${OPS_FFT} PRIVATE
-        ENABLE_OPERATOR_${OP_UPPER}=1
-    )
+
 endfunction()
 
 ##############################################################################

@@ -8,14 +8,45 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-/**
- * @file rfft1_d_test.h
- * @brief R2C FFT API 集成测试函数声明
- */
-
 #pragma once
 
 #include "test_common.h"
+#include "cann_ops_fft.h"
+
+struct R2CTestCase {
+    std::string name;
+    uint32_t n;
+    uint32_t batch;
+};
+
+inline bool run_r2c_case(aclrtStream stream, const R2CTestCase& tc) {
+    std::string data_dir = OpsFftTest::GetDataRoot("rfft1_d");
+    std::string input_file = data_dir + "/" + tc.name + "_input.bin";
+    std::string output_file = data_dir + "/" + tc.name + "_output.bin";
+
+    std::vector<float> input_flat;
+    if (!OpsFftTest::ReadFile(input_file, input_flat) || input_flat.empty()) return false;
+
+    uint32_t total_input = tc.n * tc.batch;
+    if (input_flat.size() != total_input) return false;
+
+    uint32_t output_size = (tc.n / 2 + 1) * tc.batch;
+    std::vector<aclfftComplex> output(output_size);
+
+    aclfftHandle plan;
+    if (aclfftPlan1d(&plan, tc.n, ACLFFT_R2C, tc.batch, ACLFFT_HORIZONTAL) != ACLFFT_SUCCESS) return false;
+    auto res = aclfftExecR2C(plan, input_flat.data(), output.data());
+    aclfftDestroy(plan);
+    if (res != ACLFFT_SUCCESS) return false;
+
+    std::vector<float> output_flat(output_size * 2);
+    for (uint32_t i = 0; i < output_size; i++) {
+        output_flat[i * 2] = output[i].x;
+        output_flat[i * 2 + 1] = output[i].y;
+    }
+    OpsFftTest::WriteFile(output_file, output_flat);
+    return true;
+}
 
 namespace Rfft1DApiIntegrationTest {
     void run_all_tests(aclrtStream stream, OpsFftTest::TestStats& stats);

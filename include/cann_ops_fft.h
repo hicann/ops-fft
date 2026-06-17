@@ -98,6 +98,9 @@ typedef enum aclfftLibraryPropertyType_t
  * */
 #define ACLFFT_BACKWARD 1
 
+#define ACLFFT_HORIZONTAL 0
+#define ACLFFT_VERTICAL 1
+
 typedef struct aclfftHandle_t* aclfftHandle;
 
 /*! @brief Single-precision floating point complex type
@@ -139,7 +142,8 @@ extern "C" {
 ACLFFT_API aclfftResult aclfftPlan1d(aclfftHandle* plan,
                                      int           nx,
                                      aclfftType    type,
-                                     int           batch /* deprecated - use aclfftPlanMany */);
+                                     int           batch, /* deprecated - use aclfftPlanMany */
+                                     int           dimType);
 
 /*! @brief Create a new two-dimensional FFT plan.
  *
@@ -152,8 +156,9 @@ ACLFFT_API aclfftResult aclfftPlan1d(aclfftHandle* plan,
  *  @param[in] nx Number of elements in the x-direction (slow index).
  *  @param[in] ny Number of elements in the y-direction (fast index).
  *  @param[in] type FFT type.
+ *  @param[in] batch Number of batched transforms to compute.
  */
-ACLFFT_API aclfftResult aclfftPlan2d(aclfftHandle* plan, int nx, int ny, aclfftType type);
+ACLFFT_API aclfftResult aclfftPlan2d(aclfftHandle* plan, int batch, int nx, int ny, aclfftType type);
 
 /*! @brief Create a new three-dimensional FFT plan.
  *
@@ -191,7 +196,8 @@ ACLFFT_API aclfftResult aclfftCreate(aclfftHandle* plan);
 ACLFFT_API aclfftResult aclfftMakePlan1d(aclfftHandle plan,
                                          int          nx,
                                          aclfftType   type,
-                                         int     batch, /* deprecated - use aclfftPlanMany */
+                                         int          batch,
+                                         int          stride,
                                          size_t* workSize);
 
 /*! @brief Initialize a new two-dimensional FFT plan.
@@ -206,10 +212,11 @@ ACLFFT_API aclfftResult aclfftMakePlan1d(aclfftHandle plan,
  *  @param[in] nx Number of elements in the x-direction (slow index).
  *  @param[in] ny Number of elements in the y-direction (fast index).
  *  @param[in] type FFT type.
+ *  @param[in] batch Number of batched transforms to compute.
  *  @param[out] workSize Pointer to work area size (returned value).
  */
 ACLFFT_API aclfftResult
-    aclfftMakePlan2d(aclfftHandle plan, int nx, int ny, aclfftType type, size_t* workSize);
+    aclfftMakePlan2d(aclfftHandle plan, int batch, int nx, int ny, aclfftType type, size_t* workSize);
 
 /*! @brief Initialize a new three-dimensional FFT plan.
  *
@@ -378,6 +385,7 @@ ACLFFT_API aclfftResult aclfftExecZ2D(aclfftHandle            plan,
  *  @param[in] stream The ACL stream.
  */
 ACLFFT_API aclfftResult aclfftSetStream(aclfftHandle plan, aclrtStream stream);
+ACLFFT_API aclfftResult aclfftSetStride(aclfftHandle plan, int32_t stride);
 
 /*! @brief Destroy and deallocate an existing plan.
  *
