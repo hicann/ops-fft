@@ -11,13 +11,11 @@
 #ifndef FFT1_D_C2C_ARCH35_KERNEL_H
 #define FFT1_D_C2C_ARCH35_KERNEL_H
 
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+
 /**
  * @file fft1_d_c2c_kernel.h
  * @brief Ascend950 C2C Stockham mixed-radix FFT kernel (SIMT/VF)
- *
- * Migrated from sip/ops/fft/c2c/arch35/fft_c2c_arch35/kernel/arch35/fft_c2c_multi_core.cpp
- * Entry name changed: fft_c2c_arch35_multi_core -> fft1_d_c2c
- * Algorithm unchanged from sip source.
  */
 
 #include "kernel_operator.h"
@@ -354,7 +352,9 @@ __aicore__ inline void FftC2CKernelMultiCore::Process()
     return;
 }
 
-extern "C" __global__ __aicore__ __vector__ void fft_c2c_arch35_multi_core(
+#endif
+
+extern "C" __global__ __aicore__ void fft_c2c_arch35_multi_core(
     __gm__ float * __restrict__ gm_input,
     __gm__ float * __restrict__ gm_dft_matrix_array,
     __gm__ float * __restrict__ gm_tw_matrix_array,
@@ -363,10 +363,13 @@ extern "C" __global__ __aicore__ __vector__ void fft_c2c_arch35_multi_core(
     __gm__ float * __restrict__ gm_workspace,
     __gm__ uint8_t * __restrict__ gm_tiling_para)
 {
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
     FftC2CKernelMultiCore kernel;
     kernel.Init(gm_input, gm_dft_matrix_array, gm_tw_matrix_array, radix_list,
                 gm_output, gm_workspace, gm_tiling_para);
     kernel.Process();
+#endif
 }
 
 #endif

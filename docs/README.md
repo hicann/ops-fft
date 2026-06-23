@@ -18,6 +18,12 @@ docs/
 │   │   └── test_writing_guide.md      # 测试编写指南
 │   ├── invocation/                    # 算子调用文档目录
 │   │   └── quick_op_invocation.md     # 算子调用指南
+│   ├── API Reference/                 # 接口参考文档目录
+│   │   ├── README.md                  # 接口参考索引
+│   │   ├── FFT公共接口.md             # 公共接口、数据类型与错误码
+│   │   ├── FFT_1D.md                  # 一维 FFT 接口
+│   │   ├── FFT_2D.md                  # 二维 FFT 接口
+│   │   └── figures/                   # 公式图片
 │   ├── op_list.md                     # 算子列表
 │   └── README.md                      # 中文文档索引
 └── README.md                          # 文档总入口
@@ -33,6 +39,7 @@ docs/
 | [算子开发指南](zh/develop/operator_development_guide.md) | 介绍如何从零开发一个新算子 |
 | [测试编写指南](zh/develop/test_writing_guide.md) | 介绍如何快速编写算子测试文件 |
 | [算子调用指南](zh/invocation/quick_op_invocation.md) | 介绍算子编译、安装和调用方法 |
+| [接口参考](zh/API Reference/README.md) | 介绍 `aclfft` 系列 C 接口（一维/二维 FFT、公共接口、错误码） |
 | [算子调试调优](zh/debug/op_debug_prof.md) | 介绍常见的算子调试、调优方法 |
 
 ## 附录

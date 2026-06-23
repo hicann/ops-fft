@@ -11,8 +11,6 @@
 /*!
  * \file fft1_d_c2c.cpp
  * \brief Ascend950 C2C Stockham mixed-radix FFT host code
- *
- * Migrated from sip/ops/fft/c2c/arch35 pattern
  * Handles N > 256 with mixed radix (2,3,5,7,11,13,17,19)
  */
 
@@ -21,7 +19,7 @@
 #include "fft1_d_c2c_tilingdata.h"
 #include "fft1_d_c2c_kernel.h"
 
-static inline int32_t FindRadix(int64_t n)
+static int32_t FindRadix(int64_t n)
 {
     if (n % 2 == 0) return 2;
     if (n % 3 == 0) return 3;
@@ -123,7 +121,7 @@ extern "C" aclError aclfftFft1DC2C(float *x, float *y, uint32_t n, int32_t norm,
                                           uint32_t batches, int isForward, void *stream)
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
-    uint32_t coreNum = ascendcPlatform->GetCoreNumAic();
+    uint32_t coreNum = ascendcPlatform->GetCoreNumAiv();
     if (coreNum == 0) {
         coreNum = 1;
     }

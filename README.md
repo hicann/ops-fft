@@ -101,7 +101,7 @@ sudo ./cann-950-ops-fft_9.0.0_linux-*.run --upgrade
 
 ### API 接口实现
 
-完整的接口实现状态请参考 [接口实现文档](docs/implementation.md)。
+完整的接口实现状态请参考 [接口实现文档](docs/implementation.md)。各接口的详细说明（参数、约束、调用示例）请参考 [接口参考文档](docs/zh/API%20Reference/README.md)。
 
 **已实现的接口（11 个）：**
 

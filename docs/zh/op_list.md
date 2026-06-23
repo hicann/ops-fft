@@ -21,6 +21,8 @@
 
 **目录位置**：`src/fft1_d/`
 
+**接口文档**：[FFT_1D（aclfftExecC2C）](./API%20Reference/FFT_1D.md)
+
 **支持的芯片**：Ascend 950、Ascend 910B
 
 **支持的数据类型**：FP32
@@ -36,6 +38,8 @@
 对二维复数序列执行快速傅里叶变换（FFT）。
 
 **目录位置**：`src/fft2_d/`
+
+**接口文档**：[FFT_2D（aclfftPlan2d/aclfftExecC2C）](./API%20Reference/FFT_2D.md)
 
 **支持的芯片**：Ascend 950、Ascend 910B
 
@@ -53,6 +57,8 @@
 
 **目录位置**：`src/irfft1_d/`
 
+**接口文档**：[FFT_1D（aclfftExecC2R）](./API%20Reference/FFT_1D.md)
+
 **支持的芯片**：Ascend 950、Ascend 910B
 
 **支持的数据类型**：FP32
@@ -68,6 +74,8 @@
 对一维实数序列执行快速傅里叶变换（FFT）。
 
 **目录位置**：`src/rfft1_d/`
+
+**接口文档**：[FFT_1D（aclfftExecR2C）](./API%20Reference/FFT_1D.md)
 
 **支持的芯片**：Ascend 950、Ascend 910B
 
@@ -105,3 +113,4 @@ ops-fft是[CANN](https://hiascend.com/software/cann)（Compute Architecture for 
 如需快速体验算子调用，请参考：
 - [环境部署](./context/quick_install.md)：搭建基础环境
 - [算子调用](./invocation/quick_op_invocation.md)：编译部署并调用算子
+- [接口参考](./API%20Reference/README.md)：`aclfft` 系列 C 接口说明

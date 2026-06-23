@@ -10,6 +10,7 @@
 
 #ifndef RFFT1_D_FFT_KERNEL_H
 #define RFFT1_D_FFT_KERNEL_H
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
 
 #include "kernel_operator.h"
 #include "simt_api/asc_simt.h"
@@ -467,7 +468,9 @@ __aicore__ inline void FftR2CKernelMultiCore::Process()
     return;
 }
 
-extern "C" __global__ __aicore__ __vector__ void fft_r2c_multi_core(
+#endif
+
+extern "C" __global__ __aicore__ void fft_r2c_multi_core(
     __gm__ float * __restrict__ gm_input,
     __gm__ float * __restrict__ gm_dft_matrix_array,
     __gm__ float * __restrict__ gm_tw_matrix_array,
@@ -477,10 +480,13 @@ extern "C" __global__ __aicore__ __vector__ void fft_r2c_multi_core(
     __gm__ float * __restrict__ gm_workspace,
     __gm__ uint8_t * __restrict__ gm_tiling_para)
 {
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
     FftR2CKernelMultiCore kernel;
     kernel.Init(gm_input, gm_dft_matrix_array, gm_tw_matrix_array, gm_tw_post_process, radix_list,
                 gm_output, gm_workspace, gm_tiling_para);
     kernel.Process();
+#endif
 }
 
 #endif

@@ -13,7 +13,7 @@
 #include "rfft1_d_fft_tilingdata.h"
 #include "rfft1_d_fft_kernel.h"
 
-static inline int32_t FindRadixHost(int64_t n)
+static int32_t FindRadixHost(int64_t n)
 {
     if (n % 2 == 0) return 2;
     if (n % 3 == 0) return 3;
@@ -133,7 +133,7 @@ extern "C" aclError aclfftRfft1DFft(float *x, float *y, uint32_t n, int32_t norm
                                           uint32_t batches, int isForward, void *stream)
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
-    uint32_t coreNum = ascendcPlatform->GetCoreNumAic();
+    uint32_t coreNum = ascendcPlatform->GetCoreNumAiv();
     if (coreNum == 0) {
         coreNum = 1;
     }
