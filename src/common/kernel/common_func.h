@@ -17,8 +17,6 @@
 #ifdef __CCE_KT_TEST__
 #include "stub_def.h"
 #include "stub_fun.h"
-#else
-#include "kernel_macros.h"
 #endif
 
 template <uint32_t ALIGN, typename T = uint32_t>

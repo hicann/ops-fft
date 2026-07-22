@@ -118,8 +118,8 @@ get_soc_version() {
             echo "Ascend310B"
             ;;
         *)
-            # 如果没有映射，直接使用小写名称
-            echo "$soc_lower"
+            log_error "Unknown SoC: '${soc_name}'. Recognized SoCs: Ascend950, Ascend910B, Ascend910_93, Ascend910, Ascend310P, Ascend310B"
+            exit 1
             ;;
     esac
 }
@@ -145,8 +145,13 @@ soc_to_npu_arch() {
         "ascend310p"|"ascend310_p")
             echo "dav-2101"
             ;;
+        "ascend310b"|"ascend310_b")
+            log_error "SoC '${soc_name}' is recognized but not supported in the current version."
+            exit 1
+            ;;
         *)
-            echo "dav-3510"
+            log_error "Unknown SoC architecture: '${soc_name}'. Supported SoCs: Ascend950, Ascend910B, Ascend910_93, Ascend910, Ascend310P"
+            exit 1
             ;;
     esac
 }
