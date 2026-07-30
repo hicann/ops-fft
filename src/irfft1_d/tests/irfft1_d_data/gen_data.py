@@ -17,7 +17,7 @@ import sys
 import numpy as np
 import torch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'common'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'common', 'host'))
 import test_helper
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,10 @@ configs = [
     {"name": "c2r_n16", "n": 16, "batch": 1},
     {"name": "c2r_n2100", "n": 2100, "batch": 1},
     {"name": "c2r_n5040", "n": 5040, "batch": 1},
+    {"name": "c2r_fft_n1536", "n": 1536, "batch": 4},
+    {"name": "c2r_fft_n8192", "n": 8192, "batch": 4},
+    {"name": "c2r_fft_n2048_b100", "n": 2048, "batch": 100},
+    {"name": "c2r_fft_odd_n1025", "n": 1025, "batch": 4},
 ]
 
 

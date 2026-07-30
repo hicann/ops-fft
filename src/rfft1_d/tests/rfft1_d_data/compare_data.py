@@ -13,7 +13,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'common'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'common', 'host'))
 import test_helper
 
 configs = {
@@ -25,6 +25,9 @@ configs = {
     "r2c_n2100": {"atol": 1e-2, "rtol": 1e-3},
     "r2c_n5040": {"atol": 5e-2, "rtol": 1e-2},
     "r2c_n25200": {"atol": 2e-1, "rtol": 1e-2},
+    "r2c_fft_n1536": {"atol": 1e-2, "rtol": 1e-3},
+    "r2c_fft_n8192": {"atol": 5e-2, "rtol": 1e-2},
+    "r2c_fft_n2048_b100": {"atol": 1e-2, "rtol": 1e-3},
 }
 
 curr_dir = os.path.dirname(os.path.realpath(__file__))

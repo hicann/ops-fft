@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software; you can redistribute it and/or modify it under the terms and conditions of
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
@@ -67,6 +67,8 @@ extern "C" aclError aclfftFft2DDd(float *x, float *y, uint32_t fftX, uint32_t ff
     if (coreNum == 0) {
         coreNum = 1;
     }
+    std::cerr << "[dd] coreNum(AIC)=" << coreNum << " fftX=" << fftX << " fftY=" << fftY << " batches=" << batches << std::endl;
+
 
     int32_t batchNumsPerLoop = CalcBatchNumsPerLoop(fftX, fftY);
     if (batchNumsPerLoop <= 0) {
@@ -119,7 +121,6 @@ extern "C" aclError aclfftFft2DDd(float *x, float *y, uint32_t fftX, uint32_t ff
 
     uint8_t *sync = nullptr;
     CHECK_ACL(aclrtGetHardwareSyncAddr((void **)&sync));
-
     FFT2DKernel::dd<<<coreNum, nullptr, stream>>>(
         (__gm__ uint8_t *)sync,
         (__gm__ float *)dev_input,
@@ -132,6 +133,5 @@ extern "C" aclError aclfftFft2DDd(float *x, float *y, uint32_t fftX, uint32_t ff
 
     CHECK_ACL(aclrtSynchronizeStream(stream));
     CHECK_ACL(aclrtMemcpy(y, outputSize, dev_output, outputSize, ACL_MEMCPY_DEVICE_TO_HOST));
-
     return ACL_SUCCESS;
 }

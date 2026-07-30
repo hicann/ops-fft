@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software; you can redistribute it and/or modify it under the terms and conditions of
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
@@ -81,12 +81,12 @@ __simt_vf__ LAUNCH_BOUND(VF_MAX_THREAD_NUM) __aicore__ void FftR2COddPackRealToC
         int64_t k = idx % fftN;
         int64_t outFloatIdx = wsFloatOffset + (b * fftN + k) * 2;
 
-        gm_workspace[outFloatIdx]     = gm_input[b * fftN + k];
-        gm_workspace[outFloatIdx + 1] = 0.0f;
+        gm_workspace[outFloatIdx]     = gm_input[b * fftN + k];  // Real
+        gm_workspace[outFloatIdx + 1] = 0.0f;                     // Imag = 0
     }
 }
 
-__simt_vf__ LAUNCH_BOUND(VF_MAX_THREAD_NUM) __aicore__ void FftR2CForwardStage(
+__simt_vf__ LAUNCH_BOUND(VF_MAX_THREAD_NUM) __aicore__ void FftR2CStockhamForwardStage(
     __gm__ float * __restrict__ inputBuf,
     __gm__ float * __restrict__ outputBuf,
     __gm__ float * __restrict__ dftMat,
@@ -234,7 +234,7 @@ __simt_vf__ LAUNCH_BOUND(VF_MAX_THREAD_NUM) __aicore__ void FftR2COddTruncateOut
     int64_t fftN,
     int64_t wsOffset)
 {
-    int64_t D = fftN / 2 + 1;
+    int64_t D = fftN / 2 + 1;  // 输出大小
     int64_t totalOutput = batchSize * D;
     int64_t tid = static_cast<int64_t>(Simt::GetThreadIdx<0>());
     int64_t stride = static_cast<int64_t>(Simt::GetThreadNum<0>());
@@ -279,7 +279,7 @@ private:
     int64_t fftN_;
     int32_t radixListLen_;
     int32_t isInverse_;
-    int32_t isOddN_;
+    int32_t isOddN_;  // 新增：标记是否为奇数 N
     int64_t workspaceOffsets_[5];
 
     int64_t localWorkspaceOffsets_[2];
@@ -318,7 +318,7 @@ __aicore__ inline void FftR2CKernelMultiCore::Init(
         workspaceOffsets_[i] = (*(__gm__ int64_t *)((__gm__ uint8_t *)tiling_buf + 24 + 8 * i));
     }
 
-    int64_t baseOffset = 24 + 5 * 8;
+    int64_t baseOffset = 24 + 5 * 8;  // 64
     gm_radix_arr_ = (__gm__ int32_t *)((__gm__ uint8_t *)tiling_buf + baseOffset);
     gm_M_arr_ = (__gm__ int64_t *)((__gm__ uint8_t *)tiling_buf + baseOffset + MAX_FFT_STAGES * 4);
     gm_dft_offset_arr_ = (__gm__ int64_t *)((__gm__ uint8_t *)tiling_buf + baseOffset + MAX_FFT_STAGES * 4 + MAX_FFT_STAGES * 8);
@@ -343,7 +343,7 @@ __aicore__ inline void FftR2CKernelMultiCore::Init(
     int64_t perBatchComplexBytes = fftPointCount * sizeof(float) * 2;
 
     int64_t inputByteOffset = batchStart_ * fftN_ * sizeof(float);
-    int64_t outputByteOffset = batchStart_ * (fftN_ / 2 + 1) * sizeof(float) * 2;
+    int64_t outputByteOffset = batchStart_ * (fftN_ / 2 + 1) * sizeof(float) * 2;  // 输出始终是 N//2+1
 
     gm_input_core_ = (__gm__ float *)((__gm__ uint8_t *)gm_input + inputByteOffset);
     gm_output_core_ = (__gm__ float *)((__gm__ uint8_t *)gm_output + outputByteOffset);
@@ -397,7 +397,7 @@ __aicore__ inline void FftR2CKernelMultiCore::Process()
         __gm__ float * __restrict__ dftMat = gm_dft_matrix_array_ + gm_dft_offset_arr_[step];
         __gm__ float * __restrict__ twMat  = gm_tw_matrix_array_  + gm_tw_offset_arr_[step];
 
-        Simt::VF_CALL<FftR2CForwardStage>(
+        Simt::VF_CALL<FftR2CStockhamForwardStage>(
             Simt::Dim3{VF_MAX_THREAD_NUM, 1, 1},
             inputBuf,
             outputBuf,
@@ -482,6 +482,8 @@ extern "C" __global__ __aicore__ void fft_r2c_multi_core(
 {
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
+    AscendC::GlobalTensor<uint64_t> global;
+    AscendC::DataCacheCleanAndInvalid<uint64_t, AscendC::CacheLine::ENTIRE_DATA_CACHE, AscendC::DcciDst::CACHELINE_OUT>(global);
     FftR2CKernelMultiCore kernel;
     kernel.Init(gm_input, gm_dft_matrix_array, gm_tw_matrix_array, gm_tw_post_process, radix_list,
                 gm_output, gm_workspace, gm_tiling_para);

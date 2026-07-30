@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software; you can redistribute it and/or modify it under the terms and conditions of
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
@@ -66,6 +66,7 @@ static void calculate_data_sizes(aclfftHandle_t* plan) {
  * @param nx X 维度大小
  * @param type 变换类型
  * @param batch 批量大小
+ * @param dimType 维度方向，必须为 ACLFFT_HORIZONTAL 或 ACLFFT_VERTICAL
  * @param workSize 输出参数：返回所需工作空间大小（bytes），可为 nullptr
  * @return aclfftResult 错误码
  */
@@ -109,6 +110,14 @@ aclfftResult aclfftMakePlan1d(aclfftHandle plan, int nx, aclfftType type, int ba
 
 /**
  * @brief 初始化 2D FFT Plan
+ *
+ * @param plan Plan 句柄
+ * @param batch 批量大小
+ * @param nx X 维度大小
+ * @param ny Y 维度大小
+ * @param type 变换类型
+ * @param workSize 输出参数：返回所需工作空间大小（bytes），可为 nullptr
+ * @return aclfftResult 错误码
  */
 aclfftResult aclfftMakePlan2d(aclfftHandle plan, int batch, int nx, int ny, aclfftType type,
                               size_t* workSize) {
@@ -141,8 +150,15 @@ aclfftResult aclfftMakePlan2d(aclfftHandle plan, int batch, int nx, int ny, aclf
 
 /**
  * @brief 初始化 3D FFT Plan
- *
+
  * 占位实现，返回 ACLFFT_NOT_IMPLEMENTED
+ * @param plan Plan 句柄
+ * @param nx X 维度大小
+ * @param ny Y 维度大小
+ * @param nz Z 维度大小
+ * @param type 变换类型
+ * @param workSize 输出参数：返回所需工作空间大小（bytes），可为 nullptr
+ * @return aclfftResult 错误码
  */
 aclfftResult aclfftMakePlan3d(aclfftHandle plan, int nx, int ny, int nz, aclfftType type,
                               size_t* workSize) {

@@ -193,19 +193,21 @@ ops-fft/
 │       ├── ops_fft/           # ops-fft 安装脚本
 │       └── package.py         # 打包入口
 ├── src/                        # 算子层实现
-│   ├── common/                 # 公共代码（host/kernel 工具）
-│   │   ├── fft_common_core.h   # Host 侧公共头文件
-│   │   ├── fft_common_kernel.h # Kernel 侧公共头文件
-│   │   └── kernel/             # Kernel 侧公共实现
+│   ├── common/                 # 公共代码
+│   │   ├── host/               # Host 侧公共代码
+│   │   ├── kernel/             # Kernel 侧公共实现
+│   │   └── tiling/             # Tiling 数据公共定义
 │   ├── fft1_d/                 # 一维复数 FFT 算子
 │   │   ├── fft1_d.h            # 算子接口
 │   │   ├── arch32/             # Ascend910B 架构实现
 │   │   │   ├── dft/            # DFT 实现
 │   │   │   ├── fft_b/          # FFT-B 实现
+│   │   │   ├── fft_mix/        # Mix FFT 实现
 │   │   │   ├── fft_n/          # FFT-N 实现
 │   │   │   └── fft_stride/     # Stride FFT 实现
 │   │   ├── arch35/             # Ascend950 架构实现
-│   │   │   └── c2c/            # C2C 实现
+│   │   │   ├── fft/            # C2C 实现
+│   │   │   └── mix/            # C2C Mix 实现
 │   │   └── tests/              # 算子测试
 │   ├── fft2_d/                 # 二维复数 FFT 算子
 │   │   ├── fft2_d.h            # 算子接口
@@ -215,14 +217,16 @@ ops-fft/
 │   ├── irfft1_d/               # 一维复数到实数 IFFT 算子
 │   │   ├── irfft1_d.h          # 算子接口
 │   │   ├── arch32/             # Ascend910B 架构实现
+│   │   │   ├── c2r_fft/        # C2R FFT 实现
 │   │   │   └── dft/            # DFT 实现
 │   │   ├── arch35/             # Ascend950 架构实现
-│   │   │   └── dft/            # DFT 实现
+│   │   │   └── fft/            # FFT 实现
 │   │   └── tests/              # 算子测试
 │   ├── rfft1_d/                # 一维实数 FFT 算子
 │   │   ├── rfft1_d.h           # 算子接口
 │   │   ├── arch32/             # Ascend910B 架构实现
-│   │   │   └── dft/            # DFT 实现
+│   │   │   ├── dft/            # DFT 实现
+│   │   │   └── r2c_fft/        # R2C FFT 实现
 │   │   ├── arch35/             # Ascend950 架构实现
 │   │   │   ├── fast_dft/       # 快速 DFT 实现
 │   │   │   └── fft/            # FFT 实现

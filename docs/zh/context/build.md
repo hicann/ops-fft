@@ -44,10 +44,12 @@ build.sh 支持多种功能，可通过 `--help` 参数查看所有选项：
 
 ## 支持的 SoC 型号
 
-| SoC 型号 | SOC_VERSION（CANN 编译器） | 说明 |
-|---------|---------------------------|------|
-| Ascend950 | ascend950dt_9595 | 默认支持（dav-3510） |
-| Ascend910B | ascend910b | 已支持（dav-2201） |
+| SoC 型号 | SOC_VERSION（CANN 编译器） | NPU 架构 | 说明 |
+|---------|---------------------------|-----------|------|
+| Ascend950 | ascend950 | dav-3510（arch35） | 默认支持，对应 `src/<op>/arch35/` 实现 |
+| Ascend910B | ascend910b | dav-2201（arch32） | 已支持，对应 `src/<op>/arch32/` 实现 |
+
+> **说明**：`build.sh` 的 `--soc` 还可识别 `ascend910_93`/`ascend910`/`ascend310p` 等名称，但当前仅有 Ascend950 与 Ascend910B 提供算子实现目录（`arch35`/`arch32`），其他型号会因缺少实现目录而被跳过。
 
 
 ## 使用示例
@@ -129,7 +131,7 @@ build.sh 支持多种功能，可通过 `--help` 参数查看所有选项：
 
 ```
 build/
-├── libops_fft.so         # 动态库
+├── libcann_ops_fft.so    # 动态库（CMakeLists 中 OUTPUT_NAME=cann_ops_fft）
 ├── tests/
 │   └── all_ops_test         # 测试可执行文件
 └── ...
@@ -163,4 +165,4 @@ build_out/cann-{soc}-ops-fft_{version}_linux-{arch}.run
 
 - [环境部署](quick_install.md)
 - [算子调用](../invocation/quick_op_invocation.md)
-- [算子开发](../develop/aicore_develop_guide.md)
+- [算子开发](../develop/operator_development_guide.md)

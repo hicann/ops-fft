@@ -41,7 +41,7 @@
 
 **接口文档**：[FFT_2D（aclfftPlan2d/aclfftExecC2C）](./API%20Reference/FFT_2D.md)
 
-**支持的芯片**：Ascend 950、Ascend 910B
+**支持的芯片**：Ascend 910B（Ascend 950 暂未支持，仅有 `arch32` 实现）
 
 **支持的数据类型**：FP32
 

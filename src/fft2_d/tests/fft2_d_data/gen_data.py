@@ -17,7 +17,7 @@ import sys
 import numpy as np
 import torch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'common'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'common', 'host'))
 import test_helper
 
 logger = logging.getLogger(__name__)

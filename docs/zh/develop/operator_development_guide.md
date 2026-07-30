@@ -2,25 +2,36 @@
 
 ## 目录结构
 
-开发一个算子需要以下文件：
+开发一个算子需要以下文件（以 `rfft1_d` 为参照，实际文件名可自定义）：
 
 ```
 ${op_name}/                              # 算子名的小写下划线形式
-├── CMakeLists.txt                       # 算子编译配置文件
-├── ${op_name}_kernel.cpp                # Kernel实现文件(可自定义文件名)
-├── ${op_name}_host.cpp                  # Host侧代码(可自定义文件名)
-├── arch35/                              # Ascend950特有实现
-│   └── ${op_name}_struct.h              # 算子结构定义(可自定义文件名)
-└── tests/                               # 测试用例目录
-    ├── ${op_name}_test.cpp              # 算子测试用例
-    └── ${op_name}_test.h                # 测试头文件
+├── CMakeLists.txt                       # 算子编译配置（register_operator 注册）
+├── ${op_name}.h                         # 算子头文件
+├── arch32/                              # Ascend 910B 架构实现
+│   ├── ${op_name}_exec_api.cpp          # Host 侧分发入口（Exec 接口实现）
+│   └── ${impl}/                         # 具体实现目录（如 dft、r2c_fft 等）
+│       ├── ${op_name}_${impl}.cpp       # Host 侧实现（Tiling 计算、内存管理、核函数调用）
+│       ├── ${op_name}_${impl}_kernel.h  # Kernel 实现（核函数逻辑）
+│       └── ${op_name}_${impl}_tilingdata.h  # Tiling 数据结构（可选，也可内联）
+├── arch35/                              # Ascend 950 架构实现
+│   ├── ${op_name}_exec_api.cpp          # Host 侧分发入口
+│   └── ${impl}/                         # 具体实现目录（如 fast_dft、fft 等）
+│       ├── ${op_name}_${impl}.cpp
+│       ├── ${op_name}_${impl}_kernel.h
+│       └── ${op_name}_${impl}_tilingdata.h
+└── tests/                               # 测试用例目录（按架构拆分）
+    ├── ${op_name}_test.h                # 测试头文件
+    ├── ${op_name}_test_arch32.cpp       # arch32 测试用例
+    ├── ${op_name}_test_arch35.cpp       # arch35 测试用例
+    └── ${op_name}_data/                 # 测试数据目录（gen_data.py / compare_data.py）
 ```
 
 **说明**：
-- Host 和 Kernel 可以合并为一个 `.cpp` 文件
-- TilingData 可以定义在 `.cpp` 文件中，也可以独立为 `_struct.h`
-- `arch35/` 目录仅在需要区分不同 SOC 架构时使用
-- 测试文件强烈推荐，但不是必需的
+- Host 与 Kernel 通常分文件：`*_kernel.h` 放核函数，`*.cpp` 放 Host 侧（Tiling、内存、核函数调用）
+- TilingData 可独立为 `_tilingdata.h`，也可定义在 `.cpp` 中
+- `arch32/`（910B）与 `arch35/`（950）按 SOC 架构分目录，由 `register_operator` 自动发现
+- 测试按架构拆分为 `_test_arch32.cpp` / `_test_arch35.cpp`
 
 ---
 
@@ -53,8 +64,8 @@ namespace <OpName>Op {
 
 // ========== Host 部分：对外接口 ==========
 
-extern "C" aclError acltensor<OpName>(float* input, float* output,
-                                        int64_t size, void* stream)
+extern "C" aclError aclfft<OpName>(float* input, float* output,
+                                         int64_t size, void* stream)
 {
     // 1. 参数检查
     if (input == nullptr || output == nullptr || size <= 0) {
@@ -131,7 +142,7 @@ void <op_name>_kernel_do(GM_ADDR input, GM_ADDR output, GM_ADDR tiling,
 **Host 部分关键点**：
 1. 定义 TilingData 结构体（或 include 独立的 `_struct.h`）
 2. 计算 Tiling 参数
-3. 实现对外接口（如 `acltensorRfft1_d`、`acltensorIfft1_d` 等）
+3. 实现对外接口（如 `aclfftRfft1D`、`aclfftIrfft1DFft` 等，前缀统一为 `aclfft`，由 `lib/` 的 `aclfftExec*` 分发层调用）
 4. 使用 `<<<numBlocks, workspace, stream>>>` 调用核函数
 
 **Kernel 部分关键点**：
@@ -185,8 +196,7 @@ struct <OpName>TilingData {
 
 ```cmake
 register_operator(
-    NAME <op_name>
-    ARCH_DIR arch35    # 如果需要区分架构才加这个参数
+    NAME <op_name>     # 自动发现 arch32/arch35 下的源文件
 )
 ```
 
@@ -225,7 +235,7 @@ touch src/<op_name>/tests/<op_name>_test.cpp
 
 在 `<op_name>.cpp` 中：
 1. 定义 TilingData 结构体（或 include 独立的 `_struct.h`）
-2. 实现对外接口（如 `acltensorRfft1_d`、`acltensorIfft1_d` 等）
+2. 实现对外接口（如 `aclfftRfft1D`、`aclfftIrfft1DFft` 等，前缀统一为 `aclfft`，由 `lib/` 的 `aclfftExec*` 分发层调用）
 3. 计算 Tiling 参数
 4. 实现核函数（使用 `__global__ __aicore__`）
 
@@ -283,11 +293,14 @@ touch src/<op_name>/tests/<op_name>_test.cpp
 
 ## 完整示例
 
-参见 `src/rfft1_d/` 目录：
-- `rfft1_d_host.cpp` - Host 端实现（对外接口、Tiling 计算、内存管理）
-- `rfft1_d_kernel.cpp` - Kernel 端实现（核函数逻辑）
-- `rfft1_d_struct.h` - Tiling 数据结构
-- `CMakeLists.txt` - 编译配置
+参见 `src/rfft1_d/` 目录（实际文件）：
+- `rfft1_d.h` - 算子头文件
+- `CMakeLists.txt` - 编译配置（`register_operator(NAME rfft1_d)`）
+- `arch32/rfft1_d_exec_api.cpp` - 910B Exec 分发入口
+- `arch32/dft/`、`arch32/r2c_fft/` - 910B 实现：`rfft1_d_dft.*` / `rfft1_d_r2c_fft.*`（`.cpp` + `_kernel.h` + `_tilingdata.h`）
+- `arch35/rfft1_d_exec_api.cpp` - 950 Exec 分发入口
+- `arch35/fast_dft/`、`arch35/fft/` - 950 实现：`rfft1_d_fast_dft.cpp`/`rfft1_d_fast.h`/`rfft1_d_tilingdata.h`、`rfft1_d_fft.*`
+- `tests/` - `rfft1_d_test.h`、`rfft1_d_test_arch32.cpp`、`rfft1_d_test_arch35.cpp`、`rfft1_d_data/`（`gen_data.py`、`compare_data.py`）
 
 ---
 

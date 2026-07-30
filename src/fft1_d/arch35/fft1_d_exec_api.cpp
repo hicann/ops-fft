@@ -1,10 +1,10 @@
 /**
  * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software; you can redistribute it and/or modify it under the terms of conditions of
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE.
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
@@ -33,10 +33,14 @@ aclfftResult aclfftExecC2C_1D(aclfftHandle plan,
 
     if (socVersion == platform_ascendc::SocVersion::ASCEND950) {
         int radix = ChooseRadix(impl->type, uniques);
-        if (n > K_N_FFT_256 && (radix == K_RADIX_2 || radix == K_RADIX_MIX)) {
+        if (n > 1 && radix == K_RADIX_2) {
             err = aclfftFft1DC2C(reinterpret_cast<float*>(idata),
                                  reinterpret_cast<float*>(odata),
                                  n, fft_norm, batch, isForward, impl->stream);
+        } else if (n > 1 && radix == K_RADIX_MIX) {
+            err = aclfftFft1DC2CMix(reinterpret_cast<float*>(idata),
+                                    reinterpret_cast<float*>(odata),
+                                    n, fft_norm, batch, isForward, impl->stream);
         } else {
             std::cerr << "[ops-fft] C2C arch35: n=" << n << " radix=" << radix << " not implemented" << std::endl;
             return ACLFFT_NOT_IMPLEMENTED;

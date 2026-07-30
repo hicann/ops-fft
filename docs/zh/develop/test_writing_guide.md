@@ -2,12 +2,14 @@
 
 ## 文件结构
 
-写一个算子的测试需要 **2 个文件**：
+写一个算子的测试需按架构拆分（参照 `src/rfft1_d/tests/`）：
 
 ```
 src/<op_name>/tests/
-├── <op_name>_test.h      # 头文件（必需）
-└── <op_name>_test.cpp    # 实现文件（必需）
+├── <op_name>_test.h            # 头文件（必需，声明 run_all_tests）
+├── <op_name>_test_arch32.cpp   # Ascend 910B 测试用例（必需）
+├── <op_name>_test_arch35.cpp   # Ascend 950 测试用例（必需）
+└── <op_name>_data/             # 测试数据目录（gen_data.py / compare_data.py）
 ```
 
 ## 头文件（必需）
@@ -50,27 +52,26 @@ void test_xxx(aclrtStream stream, OpsFftTest::TestStats& stats);
 - `stream` - 传递给算子调用，用于在 NPU 上执行
 - `stats` - 传递给所有测试宏（TEST_ASSERT、TEST_CASE_PASS 等），用于自动统计
 
-**示例**：
+**示例**（以一维 C2C FFT 为例，ops-fft 统一用 Plan 模型的 `aclfft*` 接口，输入输出为 Host 指针）：
 
 ```cpp
 void test_xxx(aclrtStream stream, OpsFftTest::TestStats& stats) {
     TEST_CASE_BEGIN("test_xxx");
 
-    // 准备数据
-    float input1[] = {1.0f, 2.0f};
-    float input2[] = {2.0f, 3.0f};
-    float expected[] = {3.0f, 5.0f};
-    float output[2];
+    // 准备数据（复数，实虚交错）：N=2，input = {1+2j, 3+4j}
+    aclfftComplex input[]    = {{1.0f, 2.0f}, {3.0f, 4.0f}};
+    aclfftComplex expected[] = {{4.0f, 6.0f}, {-2.0f, -2.0f}}; // 正向 DFT 结果
+    aclfftComplex output[2];
 
-    // 调用算子
-    // 可以直接调用算子的接口
-    aclError result = acl<OpName>(input1, input2, output, 2, stream);
-    // 也可以通过Api来调用
-    // aclError result = aclfftExecR2C(plan, input1, output);
+    // 调用算子（Plan 模型：创建 Plan → Exec → 销毁）
+    aclfftHandle plan;
+    aclfftPlan1d(&plan, 2, ACLFFT_C2C, 1, ACLFFT_HORIZONTAL);
+    aclfftResult result = aclfftExecC2C(plan, input, output, ACLFFT_FORWARD);
+    aclfftDestroy(plan);
 
     // 验证结果
-    TEST_ASSERT(stats, result == ACL_SUCCESS, "failed");
-    TEST_ASSERT_ARRAY_NEAR(stats, output, expected, 2, 1e-6f, "mismatch");
+    TEST_ASSERT(stats, result == ACLFFT_SUCCESS, "failed");
+    TEST_ASSERT_ARRAY_NEAR(stats, (float*)output, (float*)expected, 4, 1e-6f, "mismatch");
 
     TEST_CASE_PASS(stats, "test_xxx");
 }
@@ -115,15 +116,18 @@ namespace MyOpTest {
 void test_basic(aclrtStream stream, OpsFftTest::TestStats& stats) {
     TEST_CASE_BEGIN("test_basic");
 
-    float x1[] = {1.0f, 2.0f};
-    float x2[] = {2.0f, 3.0f};
-    float expected[] = {3.0f, 5.0f};
-    float y[2];
+    // 复数输入：N=2，input = {1+2j, 3+4j}
+    aclfftComplex input[]    = {{1.0f, 2.0f}, {3.0f, 4.0f}};
+    aclfftComplex expected[] = {{4.0f, 6.0f}, {-2.0f, -2.0f}}; // 正向 DFT 结果
+    aclfftComplex y[2];
 
-    aclError result = aclMyOp(x1, x2, y, 2, stream);
+    aclfftHandle plan;
+    aclfftPlan1d(&plan, 2, ACLFFT_C2C, 1, ACLFFT_HORIZONTAL);
+    aclfftResult result = aclfftExecC2C(plan, input, y, ACLFFT_FORWARD);
+    aclfftDestroy(plan);
 
-    TEST_ASSERT(stats, result == ACL_SUCCESS, "failed");
-    TEST_ASSERT_ARRAY_NEAR(stats, y, expected, 2, 1e-6f, "mismatch");
+    TEST_ASSERT(stats, result == ACLFFT_SUCCESS, "failed");
+    TEST_ASSERT_ARRAY_NEAR(stats, (float*)y, (float*)expected, 4, 1e-6f, "mismatch");
 
     TEST_CASE_PASS(stats, "test_basic");
 }
@@ -166,4 +170,11 @@ TEST_ASSERT_ARRAY_NEAR(stats, actual, expected, size, tol, "error")  // 容差�
 
 ## 参考示例
 
-完整示例：`src/rfft1_d/tests/rfft1_d_test.cpp`
+完整示例（数据驱动 + Plan 模型 `aclfftExec*` 接口，按架构拆分）：
+
+- `src/rfft1_d/tests/rfft1_d_test.h` - 测试头文件（`Rfft1DApiIntegrationTest::run_all_tests` 声明、用例结构、`aclfftPlan1d`/`aclfftExecR2C`/`aclfftDestroy` 调用）
+- `src/rfft1_d/tests/rfft1_d_test_arch32.cpp` - 910B 测试用例
+- `src/rfft1_d/tests/rfft1_d_test_arch35.cpp` - 950 测试用例
+- `src/rfft1_d/tests/rfft1_d_data/` - 测试数据（`gen_data.py` 生成、`compare_data.py` 比对）
+
+> **说明**：ops-fft 的测试统一通过 `aclfftPlan1d`/`aclfftExecC2C|R2C|C2R`/`aclfftDestroy` 的 Plan 模型调用算子（输入输出为 Host 指针），而非直接调用 kernel 入口；下文示例为简化说明用的最小写法。

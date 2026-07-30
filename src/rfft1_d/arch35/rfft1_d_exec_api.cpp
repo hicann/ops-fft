@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software; you can redistribute it and/or modify it under the terms of conditions of
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
@@ -28,28 +28,29 @@ aclfftResult aclfftExecR2C_1D(aclfftHandle plan,
     auto socVersion = ascendcPlatform->GetSocVersion();
 
     static constexpr uint32_t K_N_FFT_1024 = 1024;
+    static constexpr uint32_t K_N_FFT_4096 = 4096;
 
     if (socVersion == platform_ascendc::SocVersion::ASCEND950) {
-        if (n <= 4096) {
-            // rfft1_d_fast_dft: n <= 4096
-            // 当 n > 1024 && radix==mix 时也可走 fft_r2c_multi_core，但 fast_dft 优先
+        std::vector<int64_t> factors = orderedFactorize(n);
+        std::vector<int64_t> uniques = deDuplicates(factors);
+        int radix = ChooseRadix(impl->type, uniques);
+
+        // 优先级1（最高）：fft_r2c_multi_core
+        // 原始约束 getR2CCore：n > K_N_FFT_1024 && radix==mix → kFftR2CArch35
+        if (n > K_N_FFT_1024 && radix == K_RADIX_MIX) {
+            err = aclfftRfft1DFft(reinterpret_cast<float*>(idata),
+                                  reinterpret_cast<float*>(odata),
+                                  n, rfft_norm, batch, isForward, impl->stream);
+        }
+        // 优先级2（最低，兜底）：fast_dft — n <= K_N_FFT_4096
+        else if (n <= K_N_FFT_4096) {
             err = aclfftRfft1D(reinterpret_cast<float*>(idata),
                                reinterpret_cast<float*>(odata),
                                n, rfft_norm, batch, impl->stream);
-        } else {
-            std::vector<int64_t> factors = orderedFactorize(n);
-            std::vector<int64_t> uniques = deDuplicates(factors);
-            int radix = ChooseRadix(impl->type, uniques);
-
-            if (radix == K_RADIX_MIX) {
-                // n > 4096 && radix==mix → fft_r2c_multi_core
-                err = aclfftRfft1DFft(reinterpret_cast<float*>(idata),
-                                      reinterpret_cast<float*>(odata),
-                                      n, rfft_norm, batch, isForward, impl->stream);
-            } else {
-                std::cerr << "[ops-fft] R2C arch35: n=" << n << " radix=" << radix << " not implemented" << std::endl;
-                return ACLFFT_NOT_IMPLEMENTED;
-            }
+        }
+        else {
+            std::cerr << "[ops-fft] R2C arch35: n=" << n << " radix=" << radix << " not implemented" << std::endl;
+            return ACLFFT_NOT_IMPLEMENTED;
         }
     } else {
         std::cerr << "  [ERROR] Unsupported SoC: " << SocVersionToString(socVersion)

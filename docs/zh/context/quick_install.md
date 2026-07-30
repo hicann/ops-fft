@@ -1,6 +1,6 @@
 # 环境部署
 
-基于本项目进行[算子调用](../invocation/quick_op_invocation.md)或[算子开发](../develop/aicore_develop_guide.md)之前，需要参考下述步骤完成基础环境搭建。
+基于本项目进行[算子调用](../invocation/quick_op_invocation.md)或[算子开发](../develop/operator_development_guide.md)之前，需要参考下述步骤完成基础环境搭建。
 
 ## 前提条件
 

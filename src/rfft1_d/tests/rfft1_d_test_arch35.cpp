@@ -13,9 +13,11 @@
 namespace Rfft1DApiIntegrationTest {
     void run_all_tests(aclrtStream stream, OpsFftTest::TestStats& stats) {
         std::vector<R2CTestCase> cases = {
+            // r2c n<=4096 -> arch35/fast_dft/ : rfft1_d_fast_dft
             {"r2c_n2048",  2048,  1},
             {"r2c_n4096",  4096,  1},
             {"r2c_n2100",  2100,  1},
+            // r2c n>4096 radix-mix -> arch35/fft/ : fft_r2c_multi_core
             {"r2c_n5040",  5040,  1},
             {"r2c_n25200", 25200, 1},
         };

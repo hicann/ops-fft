@@ -27,8 +27,15 @@
 │       ├── develop                                     # 算子开发文档目录
 │       │   ├── operator_development_guide.md           # 算子开发指南
 │       │   └── test_writing_guide.md                   # 测试用例编写指南
-│       ├── fft                                         # FFT算子文档目录
-│       │   └── FFT_1D.md                               # 一维FFT算子文档
+│       ├── API_Reference                              # FFT 算子接口参考文档目录
+│       │   ├── FFT_1D.md                               # 一维 FFT 算子文档
+│       │   ├── FFT_2D.md                               # 二维 FFT 算子文档
+│       │   ├── FFT公共接口.md                         # FFT 公共接口文档
+│       │   ├── README.md                               # 接口参考索引
+│       │   └── figures                                 # 接口文档配图
+│       │       ├── FFT_2D_1.png
+│       │       ├── FFT_ID_1.png
+│       │       └── FFT_ID_2.png
 │       └── debug                                       # 调试调优文档目录
 │           └── op_debug_prof.md                        # 算子调试调优指南
 ├── include                                             # 头文件目录
@@ -49,7 +56,9 @@
 │   └── package                                         # 打包相关脚本
 │       ├── package.py                                  # 打包主脚本
 │       ├── common                                      # 公共打包工具
-│       │   ├──...                                      # 其他Shell脚本
+│       │   ├── cfg                                     # 打包配置
+│       │   ├── py                                      # 打包 Python 工具
+│       │   └── sh                                      # 打包 Shell 脚本
 │       ├── latest_manager                              # 版本管理脚本
 │       │   └── scripts
 │       ├── module                                      # 打包模块配置
@@ -67,19 +76,27 @@
 ├── src                                                 # 源码目录
 │   ├── CMakeLists.txt                                  # 算子编译入口
 │   ├── common                                          # 算子公共代码
-│   │   ├── fft_common_core.h                           # Host 侧公共头文件
-│   │   ├── fft_common_kernel.h                         # Kernel 侧公共头文件
-│   │   └── kernel                                      # Kernel 侧公共实现
+│   │   ├── host                                        # Host 侧公共代码
+│   │   │   ├── fft_common_core.h                       # Host 侧公共头文件
+│   │   │   ├── fft_exec_helper.h                       # Host 侧执行辅助
+│   │   │   └── test_helper.py                          # 测试辅助脚本
+│   │   ├── kernel                                      # Kernel 侧公共实现
+│   │   │   ├── base                                    # 基础设施（common/func/iterators 等）
+│   │   │   │   └── iterators                           # 各级存储迭代器
+│   │   │   └── fft                                     # FFT Kernel 公共实现
+│   │   └── tiling                                      # Tiling 数据公共定义
 │   ├── fft1_d                                          # fft1_d 算子目录
 │   │   ├── CMakeLists.txt                              # 算子编译配置文件
 │   │   ├── fft1_d.h                                    # 算子头文件
 │   │   ├── arch32                                      # Ascend910B 架构实现
 │   │   │   ├── dft                                     # DFT 实现
 │   │   │   ├── fft_b                                   # FFT-B 实现
+│   │   │   ├── fft_mix                                 # Mix FFT 实现
 │   │   │   ├── fft_n                                   # FFT-N 实现
 │   │   │   └── fft_stride                              # Stride FFT 实现
 │   │   ├── arch35                                      # Ascend950 架构实现
-│   │   │   └── c2c                                     # C2C 实现
+│   │   │   ├── fft                                     # C2C 实现
+│   │   │   └── mix                                     # C2C Mix 实现
 │   │   └── tests                                       # 算子测试用例目录
 │   │       ├── fft1_d_test.h
 │   │       ├── fft1_d_test_arch32.cpp
@@ -98,9 +115,10 @@
 │   │   ├── CMakeLists.txt
 │   │   ├── irfft1_d.h
 │   │   ├── arch32                                      # Ascend910B 架构实现
-│   │   │   └── dft
+│   │   │   ├── c2r_fft                                 # C2R FFT 实现
+│   │   │   └── dft                                     # DFT 实现
 │   │   ├── arch35                                      # Ascend950 架构实现
-│   │   │   └── dft
+│   │   │   └── fft                                     # FFT 实现
 │   │   └── tests
 │   │       ├── irfft1_d_test.h
 │   │       ├── irfft1_d_test_arch32.cpp
@@ -110,10 +128,11 @@
 │       ├── CMakeLists.txt
 │       ├── rfft1_d.h
 │       ├── arch32                                      # Ascend910B 架构实现
-│       │   └── dft
+│       │   ├── dft                                     # DFT 实现
+│       │   └── r2c_fft                                 # R2C FFT 实现
 │       ├── arch35                                      # Ascend950 架构实现
-│       │   ├── fast_dft
-│       │   └── fft
+│       │   ├── fast_dft                               # Fast DFT 实现
+│       │   └── fft                                     # FFT 实现
 │       └── tests
 │           ├── rfft1_d_test.h
 │           ├── rfft1_d_test_arch32.cpp
@@ -160,7 +179,7 @@
 | `docs/zh/context/` | 公共文档，如环境部署、目录介绍、快速安装等 |
 | `docs/zh/invocation/` | 算子调用相关文档 |
 | `docs/zh/develop/` | 算子开发相关文档 |
-| `docs/zh/fft/` | FFT算子详细文档 |
+| `docs/zh/API_Reference/` | FFT 算子设计文档 |
 | `docs/zh/debug/` | 调试调优相关文档 |
 
 ### 构建相关

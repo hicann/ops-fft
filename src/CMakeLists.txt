@@ -35,6 +35,15 @@ foreach(OP_DIR ${ALL_OP_DIRS})
     endif()
 endforeach()
 
+# Add common subdirectories to include path
+target_include_directories(${OPS_FFT} PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/common/host
+    ${CMAKE_SOURCE_DIR}/src/common/kernel/base
+    ${CMAKE_SOURCE_DIR}/src/common/kernel/fft
+    ${CMAKE_SOURCE_DIR}/src/common/tiling
+)
+
+
 # 编译启用的算子
 foreach(OP ${BUILD_OPERATORS})
     if(EXISTS ${CMAKE_SOURCE_DIR}/src/${OP}/CMakeLists.txt)

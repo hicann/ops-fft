@@ -13,6 +13,7 @@
 namespace Fft2DApiIntegrationTest {
     void run_all_tests(aclrtStream stream, OpsFftTest::TestStats& stats) {
         std::vector<C2C2DTestCase> cases = {
+            // c2c 2D radix-2 fused (32-128) -> arch32/dd/ : dd
             {"dd_32x32_forward",    32,  32,  1, ACLFFT_FORWARD},
             {"dd_32x64_forward",    32,  64,  1, ACLFFT_FORWARD},
             {"dd_64x64_forward",    64,  64,  1, ACLFFT_FORWARD},

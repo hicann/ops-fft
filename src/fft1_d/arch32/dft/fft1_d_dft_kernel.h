@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "fft_common_kernel.h"
+#include "kernel/fft_common_kernel.h"
 #include "fft1_d_dft_tilingdata.h"
 
 using T_INPUT = float;

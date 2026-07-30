@@ -13,6 +13,7 @@
 namespace Irfft1DApiIntegrationTest {
     void run_all_tests(aclrtStream stream, OpsFftTest::TestStats& stats) {
         std::vector<C2RTestCase> cases = {
+            // c2r radix-mix (n>1024) -> arch35/fft/ : fft_c2r_multi_core
             {"c2r_n2100", 2100, 1},
             {"c2r_n5040", 5040, 1},
         };

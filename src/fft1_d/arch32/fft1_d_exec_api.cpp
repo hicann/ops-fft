@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software; you can redistribute it and/or modify it under the terms of conditions of
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
@@ -97,6 +97,10 @@ aclfftResult aclfftExecC2C_1D(aclfftHandle plan,
                     err = aclfftFft1DN(reinterpret_cast<float*>(idata), reinterpret_cast<float*>(odata),
                                        n, fft_norm, batch, isForward, impl->stream);
                 }
+            } else if (radix == K_RADIX_MIX) {
+                err = aclfftFft1DMix(reinterpret_cast<float*>(idata),
+                                     reinterpret_cast<float*>(odata),
+                                     n, batch, isForward, impl->stream);
             } else {
                 std::cerr << "[ops-fft] C2C arch32: n=" << n << " C2C exec path not implemented" << std::endl;
                 return ACLFFT_NOT_IMPLEMENTED;

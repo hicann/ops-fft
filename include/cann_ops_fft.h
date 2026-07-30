@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software; you can redistribute it and/or modify it under the terms and conditions of
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
@@ -138,6 +138,7 @@ extern "C" {
  *  @param[in] nx FFT length.
  *  @param[in] type FFT type.
  *  @param[in] batch Number of batched transforms to compute.
+ *  @param[in] dimType Dimension direction, must be ACLFFT_HORIZONTAL or ACLFFT_VERTICAL.
  */
 ACLFFT_API aclfftResult aclfftPlan1d(aclfftHandle* plan,
                                      int           nx,
@@ -182,23 +183,24 @@ ACLFFT_API aclfftResult
  */
 ACLFFT_API aclfftResult aclfftCreate(aclfftHandle* plan);
 
-/*! @brief Initialize a new one-dimensional FFT plan.
- *
- *  @details Assumes that the plan has been created already, and
- *  modifies the plan associated with the plan handle.
- *
- *  @param[in] plan Handle of the FFT plan.
- *  @param[in] nx FFT length.
- *  @param[in] type FFT type.
- *  @param[in] batch Number of batched transforms to compute.
- *  @param[out] workSize Pointer to work area size (returned value).
- */
-ACLFFT_API aclfftResult aclfftMakePlan1d(aclfftHandle plan,
-                                         int          nx,
-                                         aclfftType   type,
-                                         int          batch,
-                                         int          stride,
-                                         size_t* workSize);
+ /*! @brief Initialize a new one-dimensional FFT plan.
+  *
+  *  @details Assumes that the plan has been created already, and
+  *  modifies the plan associated with the plan handle.
+  *
+  *  @param[in] plan Handle of the FFT plan.
+  *  @param[in] nx FFT length.
+  *  @param[in] type FFT type.
+  *  @param[in] batch Number of batched transforms to compute.
+  *  @param[in] dimType Dimension direction, must be ACLFFT_HORIZONTAL or ACLFFT_VERTICAL.
+  *  @param[out] workSize Pointer to work area size (returned value).
+  */
+ ACLFFT_API aclfftResult aclfftMakePlan1d(aclfftHandle plan,
+                                          int          nx,
+                                          aclfftType   type,
+                                          int          batch,
+                                          int          dimType,
+                                          size_t* workSize);
 
 /*! @brief Initialize a new two-dimensional FFT plan.
  *

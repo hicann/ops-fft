@@ -13,7 +13,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'common'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'common', 'host'))
 import test_helper
 
 configs = {
@@ -30,6 +30,18 @@ configs = {
     "fft_b_n512": {"atol": 1e-2, "rtol": 1e-3},
     "fft_b_n2048": {"atol": 1e-2, "rtol": 1e-3},
     "fft_b_n16384": {"atol": 1e-2, "rtol": 1e-3},
+    "mix_fwd_n6": {"atol": 1e-2, "rtol": 1e-3},
+    "mix_fwd_n105": {"atol": 1e-2, "rtol": 1e-3},
+    "mix_fwd_n210": {"atol": 1e-2, "rtol": 1e-3},
+    "mix_bwd_n15": {"atol": 1e-2, "rtol": 1e-3},
+    "mix_prime_n11": {"atol": 1e-2, "rtol": 1e-3},
+    "mix_primepow_n121": {"atol": 1e-2, "rtol": 1e-3},
+    "mix_mixed_n143": {"atol": 1e-2, "rtol": 1e-3},
+    "mix_all4_n2310": {"atol": 1e-2, "rtol": 1e-3},
+    "mix_vlarge_n46200": {"atol": 1e-2, "rtol": 1e-3},
+    "mix_roundtrip_n210": {"atol": 2.1, "rtol": 1e-2},
+    "mix_bwd_n210_b4": {"atol": 1e-2, "rtol": 1e-3},
+    "mix_fwd_n1536_b4": {"atol": 1e-2, "rtol": 1e-3},
 }
 
 curr_dir = os.path.dirname(os.path.realpath(__file__))

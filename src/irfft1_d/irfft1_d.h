@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software; you can redistribute it and/or modify it under the terms and conditions of
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
@@ -24,8 +24,14 @@
 extern "C" {
 #endif
 
+ACLFFT_API aclError aclfftIrfft1DFft(float *x, float *y, uint32_t n, int32_t norm,
+                                      uint32_t batches, int isForward, void *stream);
+
 ACLFFT_API aclError aclfftIrfft1DDft(float *x, float *y, uint32_t n, int32_t norm,
                                       uint32_t batches, int isForward, void *stream);
+
+ACLFFT_API aclError aclfftIrfft1DC2RFft(float *x, float *y, uint32_t n,
+                                         uint32_t batches, int isForward, void *stream);
 
 #ifdef __cplusplus
 }

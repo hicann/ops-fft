@@ -158,14 +158,14 @@ static void SetFft1DNTilingData(Fft1DNTilingData &tiling, uint32_t fftN, uint32_
 }
 static std::vector<float> InitWMatrixRadix2(uint32_t radix, bool forward, bool isLastIter)
 {
-    // Match SIP InitWMatrixCommon logic exactly
-    // SIP has different layouts for last vs non-last iteration
+    // InitWMatrixCommon logic exactly
+    // Has different layouts for last vs non-last iteration
     int32_t size = 2 * radix * 2 * radix;
     std::vector<float> matrix(size, 0.f);
     double K_2PI = 2.0 * 3.14159265358979323846;
     
     if (isLastIter) {
-        // Last iteration (SIP: radixVec.size() > 1 && it == radixVec.size() - 1)
+        // Last iteration (radixVec.size() > 1 && it == radixVec.size() - 1)
         // Layout: row i and row i+radix
         for (int64_t k = 0; k < radix * radix; ++k) {
             int64_t i = k / (radix ? radix : 1);
@@ -176,7 +176,7 @@ static std::vector<float> InitWMatrixRadix2(uint32_t radix, bool forward, bool i
             matrix[(i + radix) * 2 * radix + radix + j] = cos(-1.0 * K_2PI / (radix ? radix : 1) * i * j);
         }
     } else {
-        // Non-last iteration (SIP: else case)
+        // Non-last iteration (else case)
         // Layout: row 2*i and row 2*i+1
         for (int64_t k = 0; k < radix * radix; ++k) {
             int64_t i = k / (radix ? radix : 1);
@@ -191,7 +191,7 @@ static std::vector<float> InitWMatrixRadix2(uint32_t radix, bool forward, bool i
 }
 static std::vector<float> InitTMatrix(uint32_t fftN, const std::vector<uint32_t>& radixVec, uint32_t iterIndex, bool forward)
 {
-    // Match SIP InitTMatrixCommon logic
+    // InitTMatrixCommon logic
     // T matrix only for iterations 0 to size-1 (exclude last iteration)
     double K_2PI = 2.0 * 3.14159265358979323846;
     
@@ -201,16 +201,16 @@ static std::vector<float> InitTMatrix(uint32_t fftN, const std::vector<uint32_t>
         tempCol *= radixVec[j];
     }
     
-    uint32_t size = tempRow * tempCol;  // Note: SIP uses tempRow*tempCol not tempRow*tempCol*2
+    uint32_t size = tempRow * tempCol;  // Note: uses tempRow*tempCol not tempRow*tempCol*2
     std::vector<float> matrix(size, 0.f);
     
-    // SIP formula: angle = -2*pi/(tempRow/2 * tempCol) * i * j
+    // Formula: angle = -2*pi/(tempRow/2 * tempCol) * i * j
     // Note: tempRow/2 = radixVec[iterIndex]
     double angle_base = -1.0 * K_2PI / (tempRow / 2 * tempCol);
     
     for (uint32_t i = 0; i < tempRow / 2; ++i) {
         for (uint32_t j = 0; j < tempCol; ++j) {
-            // SIP layout: [2*i*tempCol + j] for real, [(2*i+1)*tempCol + j] for imag
+            // Layout: [2*i*tempCol + j] for real, [(2*i+1)*tempCol + j] for imag
             double angle = angle_base * i * j;
             matrix[2 * i * tempCol + j] = static_cast<float>(cos(angle));
             matrix[(2 * i + 1) * tempCol + j] = static_cast<float>(sin(angle));
@@ -220,10 +220,10 @@ static std::vector<float> InitTMatrix(uint32_t fftN, const std::vector<uint32_t>
 }
 static std::vector<int32_t> InitIndexTable(uint32_t fftN, const std::vector<uint32_t>& radixVec)
 {
-    // Match SIP index generation in FFTCoreN::InitInDevice()
+    // index generation in FFTCoreN::InitInDevice()
     uint32_t iterCount = radixVec.size();
     
-    // SIP tN calculation
+    // tN calculation
     int64_t tN = 1;
     constexpr int64_t CALCUL_TWO = 2;
     if (iterCount > CALCUL_TWO) {
@@ -241,7 +241,7 @@ static std::vector<int32_t> InitIndexTable(uint32_t fftN, const std::vector<uint
     int64_t tilingNum = (tM / 2) * tN;
     std::vector<int32_t> index(tilingNum);
     
-    // SIP index pattern
+    // Index pattern
     for (int64_t i = 0; i < tilingNum / 2; i++) {
         index[2 * i] = i * 4;
         index[2 * i + 1] = (i + tilingNum / 2) * 4;
@@ -270,7 +270,7 @@ extern "C" aclError aclfftFft1DN(float *x, float *y, uint32_t n, int32_t norm,
     std::vector<float> wMatrixHost;
     for (size_t i = 0; i < radixVec.size(); i++) {
         uint32_t radix = radixVec[i];
-        uint32_t stageSize = 2 * radix * 2 * radix;  // Match SIP size
+        uint32_t stageSize = 2 * radix * 2 * radix;  // size
         size_t wBias = wMatrixHost.size();
         wMatrixHost.resize(wBias + stageSize);
         bool isLastIter = (i == radixVec.size() - 1);

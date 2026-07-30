@@ -17,7 +17,7 @@ import sys
 import numpy as np
 import torch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'common'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'common', 'host'))
 import test_helper
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,18 @@ configs = [
     {"name": "fft_b_n512", "n": 512, "batch": 2, "forward": True},
     {"name": "fft_b_n2048", "n": 2048, "batch": 2, "forward": True},
     {"name": "fft_b_n16384", "n": 16384, "batch": 2, "forward": True},
+    {"name": "mix_fwd_n6", "n": 6, "batch": 1, "forward": True},
+    {"name": "mix_fwd_n105", "n": 105, "batch": 1, "forward": True},
+    {"name": "mix_fwd_n210", "n": 210, "batch": 1, "forward": True},
+    {"name": "mix_bwd_n15", "n": 15, "batch": 1, "forward": False},
+    {"name": "mix_prime_n11", "n": 11, "batch": 1, "forward": True},
+    {"name": "mix_primepow_n121", "n": 121, "batch": 1, "forward": True},
+    {"name": "mix_mixed_n143", "n": 143, "batch": 1, "forward": True},
+    {"name": "mix_all4_n2310", "n": 2310, "batch": 1, "forward": True},
+    {"name": "mix_vlarge_n46200", "n": 46200, "batch": 1, "forward": True},
+    {"name": "mix_roundtrip_n210", "n": 210, "batch": 1, "roundtrip": True},
+    {"name": "mix_bwd_n210_b4", "n": 210, "batch": 4, "forward": False},
+    {"name": "mix_fwd_n1536_b4", "n": 1536, "batch": 4, "forward": True},
 ]
 
 

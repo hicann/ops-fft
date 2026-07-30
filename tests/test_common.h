@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software; you can redistribute it and/or modify it under the terms and conditions of
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
@@ -311,7 +311,7 @@ inline std::string GetDataRoot(const std::string& op_name) {
 
 // Generate test case data via python script
 inline void GenCaseData(const std::string& data_dir, const std::string& name) {
-    std::string cmd = "cd " + data_dir + " && python3 gen_data.py --case " + name + " 2>/dev/null";
+    std::string cmd = "cd " + data_dir + " && PYTHONPATH=" + data_dir + "/../../common/host TORCH_DEVICE_BACKEND_AUTOLOAD=0 python3 gen_data.py --case " + name + " 2>/dev/null";
     system(cmd.c_str());
 }
 
@@ -323,7 +323,7 @@ inline void CleanupCaseData(const std::string& data_dir, const std::string& name
 
 // Compare output vs golden and cleanup, return true if passed
 inline bool CompareAndCleanup(const std::string& data_dir, const std::string& name, std::string& detail) {
-    std::string cmd = "cd " + data_dir + " && python3 compare_data.py --case " + name + " 2>/dev/null";
+    std::string cmd = "cd " + data_dir + " && PYTHONPATH=" + data_dir + "/../../common/host TORCH_DEVICE_BACKEND_AUTOLOAD=0 python3 compare_data.py --case " + name + " 2>/dev/null";
     std::array<char, 512> buffer;
     FILE* pipe = popen(cmd.c_str(), "r");
     if (!pipe) {
@@ -358,7 +358,7 @@ inline int FailAndCleanup(TestStats& stats, const std::string& name,
 
 // Batch generate all test data (one Python call)
 inline void BatchGenAllData(const std::string& data_dir) {
-    std::string cmd = "cd " + data_dir + " && python3 -u gen_data.py";
+    std::string cmd = "cd " + data_dir + " && PYTHONPATH=" + data_dir + "/../../common/host TORCH_DEVICE_BACKEND_AUTOLOAD=0 python3 -u gen_data.py";
     system(cmd.c_str());
 }
 
@@ -376,7 +376,7 @@ struct CompareResult {
 
 inline std::map<std::string, CompareResult> BatchCompareAllData(const std::string& data_dir) {
     std::map<std::string, CompareResult> results;
-    std::string cmd = "cd " + data_dir + " && python3 -u compare_data.py";
+    std::string cmd = "cd " + data_dir + " && PYTHONPATH=" + data_dir + "/../../common/host TORCH_DEVICE_BACKEND_AUTOLOAD=0 python3 -u compare_data.py";
     std::string output;
     std::array<char, 4096> buffer;
     FILE* pipe = popen(cmd.c_str(), "r");
