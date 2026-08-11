@@ -533,7 +533,7 @@ parse_arguments() {
                 shift
                 ;;
             --cann_3rd_lib_path=*)
-                CANN_3RD_LIB_PATH="$(realpath ${1#*=})"
+                CANN_3RD_LIB_PATH="$(realpath "${1#*=}")"
                 shift
                 ;;
             *)
