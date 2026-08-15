@@ -28,7 +28,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/version.cmake)
 
 # 设置项目变量
 set(OPS_FFT ops_fft)
-set(PROJECT_VERSION "1.0.0")
+set(PROJECT_VERSION "9.0.0")
 
 # 查找 ASC 编译器
 find_package(ASC REQUIRED)

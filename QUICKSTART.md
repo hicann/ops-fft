@@ -73,8 +73,8 @@ bash build.sh --pkg
 若提示如下信息，说明编译成功。
 
 ```bash
-Self-extractable archive "cann-ops-fft-1.0.0-linux-*.run" successfully created.
-Build package success: build/cann-ops-fft-1.0.0-linux-*.run
+Self-extractable archive "cann-ops-fft-9.0.0-linux-*.run" successfully created.
+Build package success: build/cann-ops-fft-9.0.0-linux-*.run
 ```
 
 编译成功后，run包存放于项目根目录的build目录下。
