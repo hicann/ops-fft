@@ -357,7 +357,7 @@ main() {
     install_gcc
     install_cmake
     install_pigz
-    install_dos2unix
+    # dos2unix removed: no scripts in the repository call dos2unix
 
     echo -e "===================================================="
     echo "All dependencies installed successfully!"
