@@ -38,6 +38,7 @@ build.sh 支持多种功能，可通过 `--help` 参数查看所有选项：
 | `--run` | 可选 | 编译后执行测试。需要配合 `BUILD_TESTING=ON` 使用。 |
 | `--pkg` | 可选 | 编译并打包成 .run 安装包。 |
 | `--soc=SOC` | 可选 | 指定目标 SoC 型号，支持大小写不敏感输入（如：`--soc=ascend950` 或 `--soc=Ascend950`）。默认为 `Ascend950`。 |
+| `--cann_3rd_lib_path=PATH` | 可选 | 指定 CANN 三方依赖目录。默认为项目根目录下的 `third_party`，指定的目录必须已存在。 |
 | `-j[N]` | 可选 | 指定编译线程数，默认为 8（如：`-j16`）。若线程数超过 CPU 核心数，会自动调整为 CPU 核心数。 |
 | `--test-timeout=N` | 可选 | 指定测试超时时间（单位：秒），默认为 300。仅在 `--run` 模式下有效。 |
 | `-h, --help` | 可选 | 显示帮助信息。 |
@@ -68,6 +69,9 @@ build.sh 支持多种功能，可通过 `--help` 参数查看所有选项：
 
 # 使用 16 线程编译
 ./build.sh -j16
+
+# 指定 CANN 三方依赖目录
+./build.sh --cann_3rd_lib_path=/path/to/third_party
 ```
 
 ### 编译并测试

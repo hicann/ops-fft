@@ -20,9 +20,11 @@
 #   --ops=OP_LIST       指定要编译的算子列表 (逗号分隔)
 #   --run               编译后执行测试
 #   --pkg               编译并打包成 .run 文件
-#   --soc=SOC           指定目标 SoC 型号 (当前仅支持: Ascend950, 支持小写输入)
+#   --soc=SOC           指定目标 SoC 型号 (支持: Ascend950、Ascend910B, 支持小写输入)
 #   -j[N]               编译线程数，默认为 8，例如: -j16
 #   --test-timeout=N    测试超时时间（秒），默认为 300
+#   --cann_3rd_lib_path=PATH
+#                       指定 CANN 三方依赖目录 (默认: ./third_party)
 #   -h, --help          显示帮助信息
 #
 # 行为说明:
@@ -49,7 +51,8 @@
 #   ./build.sh --test-timeout=600 --run   # 运行测试 with 600s timeout
 #
 # 支持的 SoC 型号:
-#   Ascend950 (默认)
+#   Ascend950  (dav-3510, 默认)
+#   Ascend910B (dav-2201)
 ##############################################################################
 
 set -e
@@ -65,7 +68,7 @@ NC='\033[0m' # No Color
 BUILD_OPERATORS="all"
 RUN_TESTS=false
 ENABLE_PACKAGE=false
-SOC_NAME="Ascend950"  # 默认 SoC 型号 (仅支持 Ascend950)
+SOC_NAME="Ascend950"  # 默认 SoC 型号
 BUILD_DIR="build"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 THREAD_NUM=8  # 默认编译线程数
@@ -239,15 +242,17 @@ Options:
   --soc=SOC           Target SoC model (default: Ascend950, case-insensitive)
   -j[N]               Number of compile threads (default: 8), e.g., -j16
   --test-timeout=N    Test timeout in seconds (default: 300)
+  --cann_3rd_lib_path=PATH
+                      CANN third-party dependency path (default: ./third_party)
   -h, --help          Show this help message
   -v, --verbose       Verbose output
   --make_clean        Clean build artifacts"
 
 Supported SoC models:
   Ascend950    (dav-3510, default)
+  Ascend910B   (dav-2201)
 
-Note: Other SoC models (Ascend910B, Ascend910_93, Ascend910, Ascend310P, Ascend310B, etc.)
-      are not supported in the current version. Support for more models will be added in future releases.
+Note: Other SoC models are not officially supported in the current version.
 
 Examples:
   $(basename "$0")                              # Build all operators (default 8 threads)
@@ -259,7 +264,9 @@ Examples:
   $(basename "$0") --pkg                        # Build package (default SoC: Ascend950)
   $(basename "$0") --ops=rfft1_d --pkg          # Build 'rfft1_d' and package
   $(basename "$0") --soc=Ascend950 --pkg        # Build package for Ascend950
+  $(basename "$0") --soc=Ascend910B --pkg       # Build package for Ascend910B
   $(basename "$0") --soc=ascend950 --pkg        # Build package (lowercase also works)
+  $(basename "$0") --cann_3rd_lib_path=/path    # Specify CANN third-party dependencies
   $(basename "$0") --test-timeout=600 --run     # Run tests with 600s timeout
   $(basename "$0") --make_clean               # Clean build artifacts
 
