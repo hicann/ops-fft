@@ -146,8 +146,8 @@ extern "C" aclError aclfftRfft1DR2CFft(float *x, float *y, uint32_t n,
 
     // 7. Allocate & copy
     // R2C: input is n real floats, output is (n/2+1) complex = (n/2+1)*2 floats
-    uint32_t inputSize = n * batches * sizeof(float);
-    uint32_t outputSize = (n / 2 + 1) * batches * sizeof(float) * 2;
+    size_t inputSize = static_cast<size_t>(n) * batches * sizeof(float);
+    size_t outputSize = static_cast<size_t>(n / 2 + 1) * batches * sizeof(float) * 2;
     void *dIn=nullptr,*dOut=nullptr,*dDft=nullptr,*dTw=nullptr,*dRadix=nullptr,*dWs=nullptr,*dTil=nullptr;
     void *dInIdx=nullptr,*dA=nullptr,*dB=nullptr,*dOutIdx=nullptr;
     CHECK_ACL(aclrtMalloc(&dIn, inputSize, ACL_MEM_MALLOC_HUGE_FIRST));

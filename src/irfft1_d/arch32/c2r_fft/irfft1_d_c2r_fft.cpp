@@ -172,8 +172,8 @@ extern "C" aclError aclfftIrfft1DC2RFft(float *x, float *y, uint32_t n,
     int64_t totalWs = wsIn + wsOut + wsSync + wsC2c + wsAux;
 
     // 7. Allocate & copy
-    uint32_t inputSize = (n / 2 + 1) * batches * sizeof(float) * 2;
-    uint32_t outputSize = n * batches * sizeof(float);
+    size_t inputSize = static_cast<size_t>(n / 2 + 1) * batches * sizeof(float) * 2;
+    size_t outputSize = static_cast<size_t>(n) * batches * sizeof(float);
     void *dIn=nullptr,*dOut=nullptr,*dDft=nullptr,*dTw=nullptr,*dRadix=nullptr,*dWs=nullptr,*dTil=nullptr;
     void *dInIdx=nullptr,*dA=nullptr,*dB=nullptr,*dOutIdx=nullptr;
     CHECK_ACL(aclrtMalloc(&dIn, inputSize, ACL_MEM_MALLOC_HUGE_FIRST));

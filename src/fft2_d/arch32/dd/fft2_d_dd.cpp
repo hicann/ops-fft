@@ -76,15 +76,15 @@ extern "C" aclError aclfftFft2DDd(float *x, float *y, uint32_t fftX, uint32_t ff
         return ACL_ERROR_INVALID_PARAM;
     }
 
-    uint32_t inputSize = batches * fftX * fftY * sizeof(float) * 2;
-    uint32_t outputSize = inputSize;
+    size_t inputSize = static_cast<size_t>(batches) * fftX * fftY * sizeof(float) * 2;
+    size_t outputSize = inputSize;
 
     std::vector<float> pMatrixHost = InitPQMatrix(fftX, isForward != 0, true);
     std::vector<float> qMatrixHost = InitPQMatrix(fftY, isForward != 0, false);
     uint32_t pMatrixSize = pMatrixHost.size() * sizeof(float);
     uint32_t qMatrixSize = qMatrixHost.size() * sizeof(float);
 
-    uint64_t workspaceSize = batches * fftX * fftY * sizeof(float) * 2;
+    uint64_t workspaceSize = static_cast<uint64_t>(batches) * fftX * fftY * sizeof(float) * 2;
 
     void *dev_input = nullptr;
     void *dev_output = nullptr;

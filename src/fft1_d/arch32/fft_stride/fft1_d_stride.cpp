@@ -131,13 +131,13 @@ aclError aclfftFft1DStride(float *x, float *y, uint32_t n, uint32_t stride,
 
     uint32_t s0 = ComputeS0(n, stride);
 
-    uint32_t inputSize = n * stride * sizeof(float) * 2;
+    size_t inputSize = static_cast<size_t>(n) * stride * sizeof(float) * 2;
     uint32_t sMatrixSize = sMatrixHost.size() * sizeof(float);
-    uint32_t outputSize = inputSize;
-    uint32_t kernelWorkspaceSize = n * s0 * sizeof(float) * 4;
+    size_t outputSize = inputSize;
+    size_t kernelWorkspaceSize = static_cast<size_t>(n) * s0 * sizeof(float) * 4;
     uint32_t tilingSize = sizeof(Fft1DStrideTilingData);
     uint32_t sysWorkspaceSize = ascendcPlatform->GetLibApiWorkSpaceSize();
-    uint32_t totalWorkspaceSize = kernelWorkspaceSize + sysWorkspaceSize;
+    size_t totalWorkspaceSize = kernelWorkspaceSize + sysWorkspaceSize;
     
     void *dev_input = nullptr;
     void *dev_s_matrix = nullptr;

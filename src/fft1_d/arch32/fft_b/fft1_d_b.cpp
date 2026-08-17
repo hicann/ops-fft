@@ -142,8 +142,8 @@ extern "C" aclError aclfftFft1DB(float *x, float *y, uint32_t n,
     std::vector<uint32_t> radixVec;
     InitRadixB(n, radixVec);
 
-    uint32_t inputSize = n * batches * sizeof(float) * 2;
-    uint32_t outputSize = inputSize;
+    size_t inputSize = static_cast<size_t>(n) * batches * sizeof(float) * 2;
+    size_t outputSize = inputSize;
 
     std::vector<float> wMatrixHost;
     for (size_t i = 0; i < radixVec.size(); i++) {

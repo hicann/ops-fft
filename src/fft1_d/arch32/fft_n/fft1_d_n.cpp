@@ -265,8 +265,8 @@ extern "C" aclError aclfftFft1DN(float *x, float *y, uint32_t n, int32_t norm,
     }
     int32_t repeatBatchSize = 0;
     ComputeRepeatBatchSize(n, batches, repeatBatchSize);
-    const uint32_t inputSize = n * batches * sizeof(float) * 2;
-    const uint32_t outputSize = inputSize;
+    const size_t inputSize = static_cast<size_t>(n) * batches * sizeof(float) * 2;
+    const size_t outputSize = inputSize;
     std::vector<float> wMatrixHost;
     for (size_t i = 0; i < radixVec.size(); i++) {
         uint32_t radix = radixVec[i];

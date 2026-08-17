@@ -141,12 +141,12 @@ extern "C" aclError aclfftIrfft1DFft(float *x, float *y, uint32_t n, int32_t nor
         tempN = M;
     }
 
-    const uint32_t inputSize = batches * (n / 2 + 1) * sizeof(float) * 2;
-    const uint32_t outputSize = batches * n * sizeof(float);
+    const size_t inputSize = static_cast<size_t>(batches) * (n / 2 + 1) * sizeof(float) * 2;
+    const size_t outputSize = static_cast<size_t>(batches) * n * sizeof(float);
     const uint32_t fftMatrixSize = allfftMatrices.size() * sizeof(float);
     const uint32_t twSize = allTwiddleFactors.size() * sizeof(float);
     const uint32_t radixListSize = tilingData.radixListLen * sizeof(float);
-    const uint32_t workspaceSize = 2 * batches * n * sizeof(float) * 2;
+    const size_t workspaceSize = 2 * static_cast<size_t>(batches) * n * sizeof(float) * 2;
     const uint32_t tilingSize = sizeof(Irfft1DfftTilingData);
 
     void *dev_input = nullptr;
