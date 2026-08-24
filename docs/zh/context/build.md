@@ -155,7 +155,7 @@ build_out/cann-{soc}-ops-fft_{version}_linux-{arch}.run
 
 ## 注意事项
 
-1. **环境变量要求**：必须设置 `ASCEND_HOME_PATH` 环境变量，否则脚本会报错退出。
+1. **环境变量要求**：必须设置 `ASCEND_HOME_PATH` 或 `ASCEND_INSTALL_PATH` 环境变量（二选一），否则脚本会报错退出。`ASCEND_INSTALL_PATH` 优先级更高。
 
 2. **线程数限制**：如果指定的线程数超过 CPU 核心数，脚本会自动调整为 CPU 核心数。
 

@@ -75,4 +75,24 @@
         ACLFFT_CHECK_PARAM(!(plan)->is_initialized, ACLFFT_INVALID_VALUE); \
     } while(0)
 
+/**
+ * @brief 校验 aclfftType 是否为已定义的合法枚举值
+ *
+ * 枚举值不连续（0x29/0x2a/0x2c/0x69/0x6a/0x6c），
+ * 不能用数值区间判断，须按白名单逐一匹配。
+ */
+static inline bool aclfft_is_valid_type(aclfftType type) {
+    switch (type) {
+        case ACLFFT_C2C:
+        case ACLFFT_R2C:
+        case ACLFFT_C2R:
+        case ACLFFT_Z2Z:
+        case ACLFFT_D2Z:
+        case ACLFFT_Z2D:
+            return true;
+        default:
+            return false;
+    }
+}
+
 #endif // FFT_ERROR_H

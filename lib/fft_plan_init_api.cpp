@@ -36,26 +36,34 @@ static void calculate_data_sizes(aclfftHandle_t* plan) {
             break;
     }
 
-    // 计算输入输出大小
-    size_t total_elements = 1;
+    // 计算实数侧全量元素数（所有维度乘积 × batch）
+    size_t full_elements = 1;
     for (int i = 0; i < plan->rank; ++i) {
-        total_elements *= plan->lengths[i];
+        full_elements *= plan->lengths[i];
     }
-    total_elements *= plan->batch;
+    full_elements *= plan->batch;
+
+    // Hermitian packed 元素数：最后一维用 floor(n/2)+1，其余维不变
+    size_t packed_elements = 1;
+    for (int i = 0; i < plan->rank - 1; ++i) {
+        packed_elements *= plan->lengths[i];
+    }
+    packed_elements *= (plan->lengths[plan->rank - 1] / 2 + 1);
+    packed_elements *= plan->batch;
 
     // 根据类型调整大小
     if (plan->type == ACLFFT_R2C || plan->type == ACLFFT_D2Z) {
-        // 实数到复数：输入是实数，输出是复数
-        plan->input_size = total_elements * plan->element_size;
-        plan->output_size = total_elements * COMPLEX_PART * plan->element_size;  // 复数需要 2 倍空间
+        // 实数到复数：输入是实数全量，输出按 Hermitian packed
+        plan->input_size = full_elements * plan->element_size;
+        plan->output_size = packed_elements * COMPLEX_PART * plan->element_size;
     } else if (plan->type == ACLFFT_C2R || plan->type == ACLFFT_Z2D) {
-        // 复数到实数：输入是复数，输出是实数
-        plan->input_size = total_elements * COMPLEX_PART * plan->element_size;
-        plan->output_size = total_elements * plan->element_size;
+        // 复数到实数：输入按 Hermitian packed，输出是实数全量
+        plan->input_size = packed_elements * COMPLEX_PART * plan->element_size;
+        plan->output_size = full_elements * plan->element_size;
     } else {
-        // C2C 或 Z2Z：输入输出都是复数
-        plan->input_size = total_elements * COMPLEX_PART * plan->element_size;
-        plan->output_size = total_elements * COMPLEX_PART * plan->element_size;
+        // C2C 或 Z2Z：输入输出都是复数全量
+        plan->input_size = full_elements * COMPLEX_PART * plan->element_size;
+        plan->output_size = full_elements * COMPLEX_PART * plan->element_size;
     }
 }
 
@@ -79,7 +87,7 @@ aclfftResult aclfftMakePlan1d(aclfftHandle plan, int nx, aclfftType type, int ba
     ACLFFT_CHECK_PARAM(nx > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(batch > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(dimType == ACLFFT_HORIZONTAL || dimType == ACLFFT_VERTICAL, ACLFFT_INVALID_VALUE);
-    ACLFFT_CHECK_PARAM(type >= ACLFFT_C2C && type <= ACLFFT_Z2D, ACLFFT_INVALID_TYPE);
+    ACLFFT_CHECK_PARAM(aclfft_is_valid_type(type), ACLFFT_INVALID_TYPE);
 
     // 设置基本参数
     impl->rank = 1;
@@ -127,7 +135,7 @@ aclfftResult aclfftMakePlan2d(aclfftHandle plan, int batch, int nx, int ny, aclf
     ACLFFT_CHECK_PARAM(nx > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(ny > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(batch > 0, ACLFFT_INVALID_SIZE);
-    ACLFFT_CHECK_PARAM(type >= ACLFFT_C2C && type <= ACLFFT_Z2D, ACLFFT_INVALID_TYPE);
+    ACLFFT_CHECK_PARAM(aclfft_is_valid_type(type), ACLFFT_INVALID_TYPE);
 
     impl->rank = 2;
     impl->lengths[0] = nx;

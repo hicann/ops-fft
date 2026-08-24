@@ -46,7 +46,7 @@ aclfftResult aclfftPlan1d(aclfftHandle* plan, int nx, aclfftType type, int batch
     ACLFFT_CHECK_PARAM(nx > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(batch > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(dimType == ACLFFT_HORIZONTAL || dimType == ACLFFT_VERTICAL, ACLFFT_INVALID_VALUE);
-    ACLFFT_CHECK_PARAM(type >= ACLFFT_C2C && type <= ACLFFT_Z2D, ACLFFT_INVALID_TYPE);
+    ACLFFT_CHECK_PARAM(aclfft_is_valid_type(type), ACLFFT_INVALID_TYPE);
 
     // 创建 Plan
     aclfftResult res = aclfftCreate(plan);
@@ -74,7 +74,7 @@ aclfftResult aclfftPlan2d(aclfftHandle* plan, int batch, int nx, int ny, aclfftT
     ACLFFT_CHECK_PARAM(nx > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(ny > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(batch > 0, ACLFFT_INVALID_SIZE);
-    ACLFFT_CHECK_PARAM(type >= ACLFFT_C2C && type <= ACLFFT_Z2D, ACLFFT_INVALID_TYPE);
+    ACLFFT_CHECK_PARAM(aclfft_is_valid_type(type), ACLFFT_INVALID_TYPE);
 
     // 创建 Plan
     aclfftResult res = aclfftCreate(plan);
@@ -103,7 +103,7 @@ aclfftResult aclfftPlan3d(aclfftHandle* plan, int nx, int ny, int nz, aclfftType
     ACLFFT_CHECK_PARAM(nx > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(ny > 0, ACLFFT_INVALID_SIZE);
     ACLFFT_CHECK_PARAM(nz > 0, ACLFFT_INVALID_SIZE);
-    ACLFFT_CHECK_PARAM(type >= ACLFFT_C2C && type <= ACLFFT_Z2D, ACLFFT_INVALID_TYPE);
+    ACLFFT_CHECK_PARAM(aclfft_is_valid_type(type), ACLFFT_INVALID_TYPE);
 
     // 创建 Plan
     aclfftResult res = aclfftCreate(plan);

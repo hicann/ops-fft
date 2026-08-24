@@ -88,6 +88,9 @@ else
     _ASCEND_INSTALL_PATH="/usr/local/Ascend/cann"
 fi
 
+# 统一导出 ASCEND_HOME_PATH，使后续 check_ascend_env 与 CMake 均可使用
+export ASCEND_HOME_PATH="${_ASCEND_INSTALL_PATH}"
+
 # SoC 名称标准化函数（首字母大写，其余小写）
 normalize_soc_name() {
     local soc="$1"
@@ -169,6 +172,7 @@ check_ascend_env() {
         echo ""
         echo "Please source the CANN environment script:"
         echo "  source /usr/local/Ascend/cann/set_env.sh"
+        echo "or set ASCEND_INSTALL_PATH / ASCEND_HOME_PATH manually."
         echo ""
         echo "Then run build.sh again."
         exit 1
@@ -518,6 +522,10 @@ parse_arguments() {
                 fi
                 if [[ ! "$THREAD_NUM" =~ ^[0-9]+$ ]]; then
                     log_error "non-integer argument:$THREAD_NUM"
+                    exit 1
+                fi
+                if [ "$THREAD_NUM" -lt 1 ]; then
+                    log_error "Thread number must be >= 1, got: $THREAD_NUM"
                     exit 1
                 fi
                 ;;
