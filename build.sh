@@ -209,7 +209,7 @@ log() {
             prefix="[ERROR]"
             ;;
         verbose)
-            if [ "$VERBOSE" != true ]; then
+            if [ -z "$VERBOSE" ]; then
                 return
             fi
             color="${BLUE}"
