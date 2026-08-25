@@ -28,15 +28,10 @@ aclfftResult aclfftDestroy(aclfftHandle plan) {
     // 注意：允许销毁未初始化的 Plan
     ACLFFT_CHECK_NULL(impl);
 
-    // 防止重复销毁
-    if (impl->is_destroyed) {
-        return ACLFFT_INVALID_PLAN;
-    }
-
-    if (impl->has_operator_state && impl->operator_state != nullptr) {}
-
-    // 标记为已销毁
-    impl->is_destroyed = true;
+    // 说明：原 is_destroyed 防重复销毁检查本身构成 use-after-free——对象在首次
+    // 销毁时即被 delete，标志随对象一同释放，二次调用读取的是已释放内存。
+    // 重复销毁应由调用方保证（内部调用方在销毁后均置 *plan=nullptr），
+    // 对已销毁句柄的再次传入属未定义行为，此处不再解引用已释放对象（issue #60）。
 
     // 释放 Plan 对象
     delete impl;

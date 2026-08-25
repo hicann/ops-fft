@@ -112,6 +112,11 @@ static std::vector<float> GenerateMixTwiddle(const std::vector<int32_t> &radixLi
 extern "C" aclError aclfftFft1DC2CMix(float *x, float *y, uint32_t n, int32_t norm,
                                        uint32_t batches, int isForward, void *stream)
 {
+    // 防护: 本函数经 ACLFFT_API 导出可被外部直接调用，需校验输入输出指针（issue #52）
+    if (x == nullptr || y == nullptr) {
+        std::cerr << "[ops-fft] aclfftFft1DC2CMix: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
     (void)norm;
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = ascendcPlatform->GetCoreNumAiv();

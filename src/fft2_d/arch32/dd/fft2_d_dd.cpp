@@ -62,6 +62,11 @@ static std::vector<float> InitPQMatrix(int64_t fftN, bool forward, bool isP)
 
 extern "C" aclError aclfftFft2DDd(float *x, float *y, uint32_t fftX, uint32_t fftY,
                                    uint32_t batches, int isForward, void *stream) {
+    // 防护: 本函数经 ACLFFT_API 导出可被外部直接调用，需校验输入输出指针（issue #53）
+    if (x == nullptr || y == nullptr) {
+        std::cerr << "[ops-fft] aclfftFft2DDd: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = ascendcPlatform->GetCoreNumAic();
     if (coreNum == 0) {

@@ -20,7 +20,8 @@
 #   --ops=OP_LIST       指定要编译的算子列表 (逗号分隔)
 #   --run               编译后执行测试
 #   --pkg               编译并打包成 .run 文件
-#   --soc=SOC           指定目标 SoC 型号 (支持: Ascend950、Ascend910B, 支持小写输入)
+#   --soc=SOC           指定目标 SoC 型号 (支持: Ascend950、Ascend910B、
+#                       Ascend910_93、Ascend910、Ascend310P，支持小写输入)
 #   -j[N]               编译线程数，默认为 8，例如: -j16
 #   --test-timeout=N    测试超时时间（秒），默认为 300
 #   --cann_3rd_lib_path=PATH
@@ -51,8 +52,12 @@
 #   ./build.sh --test-timeout=600 --run   # 运行测试 with 600s timeout
 #
 # 支持的 SoC 型号:
-#   Ascend950  (dav-3510, 默认)
-#   Ascend910B (dav-2201)
+#   Ascend950   (dav-3510, 默认)
+#   Ascend910B  (dav-2201)
+#   Ascend910_93(dav-2201)
+#   Ascend910   (dav-2101)
+#   Ascend310P  (dav-2101)
+# 注: Ascend310B 可识别但当前版本暂不支持构建
 ##############################################################################
 
 set -e
@@ -90,13 +95,6 @@ fi
 
 # 统一导出 ASCEND_HOME_PATH，使后续 check_ascend_env 与 CMake 均可使用
 export ASCEND_HOME_PATH="${_ASCEND_INSTALL_PATH}"
-
-# SoC 名称标准化函数（首字母大写，其余小写）
-normalize_soc_name() {
-    local soc="$1"
-    # 转换为小写，然后首字母大写，最后字符大写
-    echo "${soc}" | sed 's/.*/\L&/; s/^./\U&/; s/.$/\U&/'
-}
 
 # SoC 名称映射到完整的 SOC_VERSION（CANN ASC 编译器要求的格式）
 get_soc_version() {
@@ -253,10 +251,14 @@ Options:
   --make_clean        Clean build artifacts"
 
 Supported SoC models:
-  Ascend950    (dav-3510, default)
-  Ascend910B   (dav-2201)
+  Ascend950     (dav-3510, default)
+  Ascend910B    (dav-2201)
+  Ascend910_93  (dav-2201)
+  Ascend910     (dav-2101)
+  Ascend310P    (dav-2101)
 
-Note: Other SoC models are not officially supported in the current version.
+Note: Ascend310B is recognized but not supported in the current version.
+      Other SoC models are not supported.
 
 Examples:
   $(basename "$0")                              # Build all operators (default 8 threads)

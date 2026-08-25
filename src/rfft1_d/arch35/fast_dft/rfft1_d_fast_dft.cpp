@@ -317,9 +317,11 @@ extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, u
 
     uint32_t sysWorkspaceSize = ascendcPlatform->GetLibApiWorkSpaceSize();
 
-    const uint32_t inputSize = n * batches * sizeof(float);
-    const uint32_t dftSize = dft.size() * sizeof(float);
-    const uint32_t outputSize = ((n / RFFT_SYMMETRY_DIVISOR) + 1) * COMPLEX_PART * batches * sizeof(float);
+    // 用 size_t 计算，避免 ((n/2)+1)*2*batches 等中间结果在 uint32_t 域溢出截断（issue #59）
+    const size_t inputSize = static_cast<size_t>(n) * static_cast<size_t>(batches) * sizeof(float);
+    const size_t dftSize = dft.size() * sizeof(float);
+    const size_t outputSize = (static_cast<size_t>(n / RFFT_SYMMETRY_DIVISOR) + 1) * COMPLEX_PART *
+                              static_cast<size_t>(batches) * sizeof(float);
 
     void *dev_x = nullptr;
     void *dev_dft = nullptr;

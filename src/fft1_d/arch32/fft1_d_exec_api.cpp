@@ -55,6 +55,8 @@ aclfftResult aclfftExecC2C_1D(aclfftHandle plan,
                               aclfftComplex* odata,
                               int direction) {
     aclfftHandle_t* impl = plan;
+    // 防护: 本函数为 weak 符号可被外部直接调用，plan/idata/odata 可能为 NULL（issue #50）
+    ACLFFT_CHECK_PARAM(impl != nullptr && idata != nullptr && odata != nullptr, ACLFFT_INVALID_VALUE);
     ACLFFT_CHECK_PARAM(impl->rank == 1, ACLFFT_INVALID_VALUE);
 
     const uint32_t n = impl->lengths[0];
