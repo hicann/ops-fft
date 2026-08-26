@@ -132,6 +132,10 @@ static int SetTilingData(Rfft1DFftTilingData &tiling, int64_t fftN, int32_t isIn
 extern "C" aclError aclfftRfft1DFft(float *x, float *y, uint32_t n, int32_t norm,
                                           uint32_t batches, int isForward, void *stream)
 {
+    if (x == nullptr || y == nullptr) {
+        std::cerr << "[ops-fft] aclfftRfft1DFft: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = ascendcPlatform->GetCoreNumAiv();
     if (coreNum == 0) {

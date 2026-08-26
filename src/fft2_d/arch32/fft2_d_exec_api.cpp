@@ -19,6 +19,7 @@ aclfftResult aclfftExecC2C_2D(aclfftHandle plan,
                               aclfftComplex* odata,
                               int direction) {
     aclfftHandle_t* impl = plan;
+    ACLFFT_CHECK_PARAM(impl != nullptr && idata != nullptr && odata != nullptr, ACLFFT_INVALID_VALUE);
     ACLFFT_CHECK_PARAM(impl->rank == 2, ACLFFT_INVALID_VALUE);
 
     int64_t fftSizeX = impl->lengths[0];

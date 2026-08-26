@@ -305,6 +305,10 @@ extern "C" __global__ __aicore__ void rfft1_d_fast_dft(GM_ADDR x, GM_ADDR dft, G
 
 extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, uint32_t batches, void *stream)
 {
+    if (x == nullptr || y == nullptr) {
+        std::cerr << "[ops-fft] aclfftRfft1D: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
     if (n > DFT_BORDER_VALUE) {
         std::cerr << "[ops-fft] aclfftRfft1D: n=" << n << " exceeds FastDFT limit (" << DFT_BORDER_VALUE << "), not implemented" << std::endl;
         return ACL_ERROR_INVALID_PARAM;

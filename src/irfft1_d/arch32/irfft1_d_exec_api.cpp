@@ -16,6 +16,7 @@ aclfftResult aclfftExecC2R_1D(aclfftHandle plan,
                               aclfftComplex* idata,
                               aclfftReal* odata) {
     aclfftHandle_t* impl = plan;
+    ACLFFT_CHECK_PARAM(impl != nullptr && idata != nullptr && odata != nullptr, ACLFFT_INVALID_VALUE);
     ACLFFT_CHECK_PARAM(impl->rank == 1, ACLFFT_INVALID_VALUE);
 
     const int64_t n = static_cast<int64_t>(impl->lengths[0]);

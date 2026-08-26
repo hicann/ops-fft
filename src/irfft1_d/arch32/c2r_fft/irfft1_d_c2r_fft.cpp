@@ -113,6 +113,10 @@ static void GenABTable(int64_t fftN, int parity, bool forward,
 
 extern "C" aclError aclfftIrfft1DC2RFft(float *x, float *y, uint32_t n,
                                          uint32_t batches, int isForward, void *stream) {
+    if (x == nullptr || y == nullptr) {
+        std::cerr << "[ops-fft] aclfftIrfft1DC2RFft: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
     auto plat = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = plat->GetCoreNumAic(); if (coreNum == 0) coreNum = 1;
     uint32_t maxCore = std::min(coreNum, 20u);

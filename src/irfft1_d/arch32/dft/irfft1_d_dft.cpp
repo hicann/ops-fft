@@ -52,6 +52,10 @@ static std::vector<float> GenerateDftMatrixC2R(int64_t fftN, bool isForward)
 extern "C" aclError aclfftIrfft1DDft(float *x, float *y, uint32_t n, int32_t norm,
                                    uint32_t batches, int isForward, void *stream)
 {
+    if (x == nullptr || y == nullptr) {
+        std::cerr << "[ops-fft] aclfftIrfft1DDft: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = ascendcPlatform->GetCoreNumAic();
     if (coreNum == 0) {
