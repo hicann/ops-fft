@@ -34,8 +34,8 @@ def compare_one(curr_dir, name, atol, rtol, detail_only=False):
         return True
     if not os.path.exists(output_file):
         if not detail_only:
-            logger.info(f"  [SKIP] {name}: output file not found")
-        return True
+            logger.info(f"[FAIL] {name}: output file not found")
+        return False
     golden_np = np.fromfile(golden_file, dtype=np.float32)
     output_np = np.fromfile(output_file, dtype=np.float32)
     if len(golden_np) != len(output_np):
