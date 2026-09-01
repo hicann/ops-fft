@@ -157,7 +157,9 @@ __aicore__ __inline__ void C2R_even(
 
         // 每次取N个数, 执行batch_size次
         uint64_t num = N + 2 > BIASC ? BIASC : N + 2;
-        uint64_t out_num = N > BIASC ? BIASC : N; // 为规避Vgather问题引入的暂时变量 // TODO
+        // 规避Vgather问题的暂时变量：Vgather单次gather的源数据长度不能超过BIASC，
+        // 因此搬出阶段按out_num(而非全量N)粒度组织vgather，防止越界读取倒序缓冲
+        uint64_t out_num = N > BIASC ? BIASC : N;
         int index_size = (N + 2)>= BIASC ? BIAS : (((N + 2) / 2 + 63) / 64) * 64;
         uint64_t lenBurstC = (num + 7) / 8;
         uint64_t lenBurstOut = ((N > BIASC ? BIASC : N) + 7) / 8;
@@ -268,14 +270,14 @@ __aicore__ __inline__ void C2R_even(
                 int64_t offset_out = loopN * N;
 
                 AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(event_id);
-                // TODO **********搬入***************
+                // **********搬入***************
                 int actual_n = N + 2;
                 actual_n = actual_n < BIASC ? actual_n : ((loop + 1) * BIASC <= actual_n ? BIASC : (actual_n - loop * BIASC));
                 AscendC::DataCopyPad(buf0_ub_tensor, input_gm_tensor[offset + offset_loopc], AscendC::DataCopyExtParams(1, actual_n * sizeof(float), 0, 0, 0), AscendC::DataCopyPadExtParams<float>(false, 0, 0, 0));
                 AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(event_id);
                 AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(event_id);
                 AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(event_id);
-                // TODO **********C2R预先置0*****************
+                // **********C2R预先置0*****************
                 // 使用带mask的vsub将首位虚部以及末位虚部置为0
                 if (loop == 0) {
                     set_vector_mask(-1, 0x0000000000000002);
@@ -298,7 +300,7 @@ __aicore__ __inline__ void C2R_even(
                     set_vector_mask(-1, -1);
                 }
                 AscendC::PipeBarrier<PIPE_V>();
-                // TODO **********输入虚实分离***************
+                // **********输入虚实分离***************
                 //输入实数分离
                 vreducev2(
                     reinterpret_cast<__ubuf__ uint32_t *>(buf2_ub_tensor.GetPhyAddr(0)),
@@ -322,7 +324,7 @@ __aicore__ __inline__ void C2R_even(
                     8         // src1RepeatStride
                 );
                 AscendC::PipeBarrier<PIPE_V>();
-                // TODO **********倒序***************
+                // **********倒序***************
                 // 倒序分两种情况
                 if(N < BIASC && repeat_times == 1) {
                     // 一个UB块就能完成
@@ -386,7 +388,7 @@ __aicore__ __inline__ void C2R_even(
                 AscendC::PipeBarrier<PIPE_V>();
                 //A的计算
                 // 系数A实/虚分离
-                // TODO **********A矩阵相关的计算***************
+                // **********A矩阵相关的计算***************
                 // UB_BUF4：FI_REV;   UB_BUF5: FR_REV;   UB_BUF2:FR;    UB_BUF1:FI
                 // UB_BUF6: AI;   UB_BUF7: AR
                 // FR的计算
@@ -402,7 +404,7 @@ __aicore__ __inline__ void C2R_even(
  
                 // B的计算
                 // 系数B实/虚分离
-                // TODO **********B矩阵相关的计算***************
+                // **********B矩阵相关的计算***************
                 // UB_BUF4：FI_REV;   UB_BUF5: FR_REV;   UB_BUF2:FR;    UB_BUF1:FI
                 // UB_BUF6: BI;   UB_BUF7: BR
                 // FrevR的计算
@@ -416,7 +418,7 @@ __aicore__ __inline__ void C2R_even(
                 AscendC::Add(buf5_ub_tensor, temp2_ub_tensor, buf5_ub_tensor, vecMask, repeat, {1, 1, 1, 8, 8, 8}); // FrevR * BI + FervI * BR
                 AscendC::PipeBarrier<PIPE_V>();
  
-                // TODO **********虚实结合***************
+                // **********虚实结合***************
                 // A和B结果组合
                 AscendC::Add(buf1_ub_tensor, buf1_ub_tensor, buf4_ub_tensor, vecMask, repeat, {1, 1, 1, 8, 8, 8}); // FR * AR - FI * AI
                 AscendC::Add(buf2_ub_tensor, buf2_ub_tensor, buf5_ub_tensor, vecMask, repeat, {1, 1, 1, 8, 8, 8}); // FR * AI + FI * AR
@@ -426,7 +428,7 @@ __aicore__ __inline__ void C2R_even(
                 AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(event_id);
                 AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(event_id);
                 AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(event_id);
-                // TODO **********搬出***************
+                // **********搬出***************
                 actual_n = N;
                 actual_n = actual_n < BIASC ? actual_n : ((loop + 1) * BIASC <= actual_n ? BIASC : (actual_n - loop * BIASC));
                 AscendC::DataCopyPad(output_gm_tensor[offset_out / 2 + offset_loopc / 2], buf1_ub_tensor, AscendC::DataCopyExtParams(1, actual_n / 2 * sizeof(float), 0, 0, 0));

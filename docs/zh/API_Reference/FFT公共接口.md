@@ -74,7 +74,7 @@ aclfftResult aclfftCreate(aclfftHandle* plan);
     <tr>
       <td>plan（aclfftHandle*）</td>
       <td>输出</td>
-      <td>指向 Plan 句柄的指针，用于接收创建的句柄。不能为空。</td>
+      <td>指向 Plan 句柄的指针，用于接收创建的句柄。不能为空；<code>*plan</code> 应为 nullptr（空句柄）后调用，若需重复创建，须先通过 <code>aclfftDestroy</code> 释放旧句柄，否则旧句柄将无法释放（内存泄漏）。</td>
     </tr>
   </tbody>
   </table>
