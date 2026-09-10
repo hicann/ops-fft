@@ -16,8 +16,7 @@ aclfftResult aclfftExecC2R_1D(aclfftHandle plan,
                            aclfftComplex* idata,
                            aclfftReal* odata) {
     aclfftHandle_t* impl = plan;
-    ACLFFT_CHECK_PARAM(impl != nullptr && idata != nullptr && odata != nullptr, ACLFFT_INVALID_VALUE);
-    ACLFFT_CHECK_PARAM(impl->rank == 1, ACLFFT_INVALID_VALUE);
+    ACLFFT_EXEC_1D_ENTRY_CHECKS(impl, idata, odata, "C2R arch35");
 
     const uint32_t n = impl->lengths[0];
     const uint32_t batch = impl->batch;

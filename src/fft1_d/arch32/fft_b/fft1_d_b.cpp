@@ -17,7 +17,7 @@
 /* fft_b: radix-2 batched FFT (n = 256~262144, batch >= 2) implementation     */
 /* ========================================================================== */
 
-static void InitRadixB(uint32_t n, std::vector<uint32_t> &radixVec)
+static bool InitRadixB(uint32_t n, std::vector<uint32_t> &radixVec)
 {
     radixVec.clear();
     switch (n) {
@@ -33,8 +33,10 @@ static void InitRadixB(uint32_t n, std::vector<uint32_t> &radixVec)
         case 131072: radixVec = {32, 64, 64}; break;
         case 262144: radixVec = {64, 64, 64}; break;
         default:
-            throw std::runtime_error("FFTCoreB fftN is not in [2^8, 2^18] or not 2^n, init_radix failed");
+            // 不再 throw：异常会穿透 extern "C" 边界导致 C 调用方进程终止（issue #72）
+            return false;
     }
+    return true;
 }
 
 static std::vector<int32_t> InitIndexB(uint32_t n, const std::vector<uint32_t> &radixVec)
@@ -131,6 +133,11 @@ constexpr int32_t SCRATCH_SIZES_B = sizeof(float) * 655360;
 
 extern "C" aclError aclfftFft1DB(float *x, float *y, uint32_t n,
                                   uint32_t batches, int isForward, void *stream) {
+    // 防护: 本函数经 ACLFFT_API 导出可被外部直接调用，需校验输入输出指针（issue #76）
+    if (x == nullptr || y == nullptr) {
+        std::cerr << "[ops-fft] aclfftFft1DB: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = ascendcPlatform->GetCoreNumAic();
     if (coreNum == 0) {
@@ -140,7 +147,11 @@ extern "C" aclError aclfftFft1DB(float *x, float *y, uint32_t n,
     if (needCoreNum == 0) needCoreNum = 1;
 
     std::vector<uint32_t> radixVec;
-    InitRadixB(n, radixVec);
+    if (!InitRadixB(n, radixVec)) {
+        std::cerr << "[ops-fft] aclfftFft1DB: n=" << n
+                  << " not supported (must be power of 2 in [2^8, 2^18])" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
 
     size_t inputSize = static_cast<size_t>(n) * batches * sizeof(float) * 2;
     size_t outputSize = inputSize;

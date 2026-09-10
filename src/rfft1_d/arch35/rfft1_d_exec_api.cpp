@@ -16,12 +16,12 @@ aclfftResult aclfftExecR2C_1D(aclfftHandle plan,
                            aclfftReal* idata,
                            aclfftComplex* odata) {
     aclfftHandle_t* impl = plan;
-    ACLFFT_CHECK_PARAM(impl != nullptr && idata != nullptr && odata != nullptr, ACLFFT_INVALID_VALUE);
-    ACLFFT_CHECK_PARAM(impl->rank == 1, ACLFFT_INVALID_VALUE);
+    ACLFFT_EXEC_1D_ENTRY_CHECKS(impl, idata, odata, "R2C arch35");
 
     const uint32_t n = impl->lengths[0];
     const uint32_t batch = impl->batch;
-    int32_t rfft_norm = impl->normMode + 1;
+    // norm 值域已与 rfft1_d.h 文档对齐（0=BACKWARD），normMode(0) 直传即为 BACKWARD（issue #82）
+    int32_t rfft_norm = impl->normMode;
     int isForward = 1;
 
     aclError err;

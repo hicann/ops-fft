@@ -138,10 +138,8 @@ extern "C" aclError aclfftIrfft1DC2RFft(float *x, float *y, uint32_t n,
     // 2. DFT matrix (inverse for c2r)
     int64_t dftLen = GetTwiddleMatrixLen(fftN, radixVec);
     std::vector<float> dftHost(dftLen, 0.0f);
-    if (radixListLen > 1)
-        GenWMatrixInverseForMultiLen(radixListLen, radixVec.data(), fftN, dftHost.data());
-    else
-        GenWMatrixInverseForMultiLen(radixListLen, radixVec.data(), fftN, dftHost.data());
+    // GenWMatrixInverseForMultiLen 内部按 radixListLen 循环，单 radix（==1）同样适用，无需分支（issue #84）
+    GenWMatrixInverseForMultiLen(radixListLen, radixVec.data(), fftN, dftHost.data());
 
     // 3. Twiddle matrix
     int64_t twLen = GetTwMatrixLen(fftN, radixVec);

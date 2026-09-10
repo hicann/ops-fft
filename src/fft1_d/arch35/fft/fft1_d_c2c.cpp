@@ -120,6 +120,11 @@ static int SetTilingData(Fft1DC2CTilingData &tiling, int64_t fftN, int32_t isInv
 extern "C" aclError aclfftFft1DC2C(float *x, float *y, uint32_t n, int32_t norm,
                                           uint32_t batches, int isForward, void *stream)
 {
+    // 防护: 本函数经 ACLFFT_API 导出可被外部直接调用，需校验输入输出指针（issue #81）
+    if (x == nullptr || y == nullptr) {
+        std::cerr << "[ops-fft] aclfftFft1DC2C: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = ascendcPlatform->GetCoreNumAiv();
     if (coreNum == 0) {
@@ -153,12 +158,13 @@ extern "C" aclError aclfftFft1DC2C(float *x, float *y, uint32_t n, int32_t norm,
         tempN = M;
     }
 
-    const uint32_t inputSize = n * batches * sizeof(float) * 2;
-    const uint32_t outputSize = inputSize;
+    // 用 size_t 计算，避免 n*batches 等中间结果在 uint32_t 域溢出截断（issue #74）
+    const size_t inputSize = static_cast<size_t>(n) * batches * sizeof(float) * 2;
+    const size_t outputSize = inputSize;
     const uint32_t dftMatrixSize = allDftMatrices.size() * sizeof(float);
     const uint32_t twSize = allTwiddleFactors.size() * sizeof(float);
     const uint32_t radixListSize = tilingData.radixListLen * sizeof(float);
-    const uint32_t workspaceSize = 2 * batches * n * sizeof(float) * 2;
+    const size_t workspaceSize = 2 * static_cast<size_t>(batches) * n * sizeof(float) * 2;
     const uint32_t tilingSize = sizeof(Fft1DC2CTilingData);
 
     void *dev_input = nullptr;

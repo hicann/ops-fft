@@ -73,6 +73,14 @@ aclfftResult aclfftExecC2C_1D(aclfftHandle plan,
 
     if (socVersion == platform_ascendc::SocVersion::ASCEND910B) {
         if (impl->stride[0] > 1) {
+            // stride kernel 仅支持 [2^8, 2^18] 的 2 的幂，不支持时与水平路径一致返回 NOT_IMPLEMENTED（issue #72）
+            static constexpr uint32_t K_N_STRIDE_MIN = 256;
+            static constexpr uint32_t K_N_STRIDE_MAX = 262144;
+            if (n < K_N_STRIDE_MIN || n > K_N_STRIDE_MAX || (n & (n - 1)) != 0) {
+                std::cerr << "[ops-fft] C2C arch32 VERTICAL: n=" << n
+                          << " not supported (must be power of 2 in [2^8, 2^18])" << std::endl;
+                return ACLFFT_NOT_IMPLEMENTED;
+            }
             err = aclfftFft1DStride(reinterpret_cast<float*>(idata),
                                     reinterpret_cast<float*>(odata),
                                     n, impl->stride[0], batch, isForward, impl->stream);

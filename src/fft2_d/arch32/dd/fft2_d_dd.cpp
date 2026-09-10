@@ -72,8 +72,6 @@ extern "C" aclError aclfftFft2DDd(float *x, float *y, uint32_t fftX, uint32_t ff
     if (coreNum == 0) {
         coreNum = 1;
     }
-    std::cerr << "[dd] coreNum(AIC)=" << coreNum << " fftX=" << fftX << " fftY=" << fftY << " batches=" << batches << std::endl;
-
 
     int32_t batchNumsPerLoop = CalcBatchNumsPerLoop(fftX, fftY);
     if (batchNumsPerLoop <= 0) {

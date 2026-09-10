@@ -30,6 +30,7 @@ configs = [
     {"name": "dft_backward", "n": 4, "batch": 1, "forward": False},
     {"name": "dft_config", "n": 256, "batch": 10, "forward": True},
     {"name": "stride_forward", "n": 256, "batch": 128, "forward": True, "vertical": True},
+    {"name": "stride_forward_n4096", "n": 4096, "batch": 128, "forward": True, "vertical": True},
     {"name": "fft_n_forward", "n": 32768, "batch": 1, "forward": True},
     {"name": "fft_n_roundtrip", "n": 32768, "batch": 1, "roundtrip": True},
     {"name": "fft_n_config", "n": 32768, "batch": 10, "forward": True},

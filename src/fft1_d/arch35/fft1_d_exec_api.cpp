@@ -17,6 +17,8 @@ aclfftResult aclfftExecC2C_1D(aclfftHandle plan,
                            aclfftComplex* odata,
                            int direction) {
     aclfftHandle_t* impl = plan;
+    // 防护: 本函数为 weak 符号可被外部直接调用，plan/idata/odata 可能为 NULL（issue #73）
+    ACLFFT_CHECK_PARAM(impl != nullptr && idata != nullptr && odata != nullptr, ACLFFT_INVALID_VALUE);
     ACLFFT_CHECK_PARAM(impl->rank == 1, ACLFFT_INVALID_VALUE);
 
     const uint32_t n = impl->lengths[0];
@@ -32,6 +34,12 @@ aclfftResult aclfftExecC2C_1D(aclfftHandle plan,
     auto socVersion = ascendcPlatform->GetSocVersion();
 
     if (socVersion == platform_ascendc::SocVersion::ASCEND950) {
+        // Ascend950 暂不支持 VERTICAL（按列 FFT）布局，显式拒绝而非按 batch=1 静默计算（issue #75）
+        if (impl->stride[0] > 1) {
+            std::cerr << "[ops-fft] C2C arch35: VERTICAL layout (stride=" << impl->stride[0]
+                      << ") is not supported on Ascend950" << std::endl;
+            return ACLFFT_NOT_IMPLEMENTED;
+        }
         int radix = ChooseRadix(impl->type, uniques);
         if (n > 1 && radix == K_RADIX_2) {
             err = aclfftFft1DC2C(reinterpret_cast<float*>(idata),

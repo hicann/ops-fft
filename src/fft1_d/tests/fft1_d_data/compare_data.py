@@ -24,6 +24,7 @@ configs = {
     "dft_backward": {"atol": 1e-3, "rtol": 1e-3},
     "dft_config": {"atol": 1e-2, "rtol": 1e-3},
     "stride_forward": {"atol": 1e-2, "rtol": 1e-3},
+    "stride_forward_n4096": {"atol": 1e-2, "rtol": 1e-3},
     "fft_n_forward": {"atol": 1e-2, "rtol": 1e-3},
     "fft_n_roundtrip": {"atol": 3.2768, "rtol": 1e-2},
     "fft_n_config": {"atol": 1e-2, "rtol": 1e-3},

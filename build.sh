@@ -74,12 +74,18 @@ BUILD_OPERATORS="all"
 RUN_TESTS=false
 ENABLE_PACKAGE=false
 SOC_NAME="Ascend950"  # 默认 SoC 型号
-BUILD_DIR="build"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 尽早校验仓库完整性，避免在错误目录下构建无关工程（issue #83）
+if [ ! -f "${SCRIPT_DIR}/CMakeLists.txt" ]; then
+    echo -e "${RED}错误: ${SCRIPT_DIR} 下未找到 CMakeLists.txt，请确认脚本位于 ops-fft 仓库根目录${NC}" >&2
+    exit 1
+fi
+# 构建目录基于脚本绝对路径拼接，支持从任意工作目录调用本脚本（issue #83）
+BUILD_DIR="${SCRIPT_DIR}/build"
 THREAD_NUM=8  # 默认编译线程数
 CORE_NUMS=$(cat /proc/cpuinfo | grep "processor" | wc -l 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 TEST_TIMEOUT=300  # 默认测试超时时间（秒）
-BUILD_OUT_DIR=build_out
+BUILD_OUT_DIR="${SCRIPT_DIR}/build_out"
 VERBOSE=""
 CANN_3RD_LIB_PATH="${SCRIPT_DIR}/third_party"
 TEST_FILTER=""  # 测试过滤器（逗号分隔的算子名称，如 "fft1_d"）

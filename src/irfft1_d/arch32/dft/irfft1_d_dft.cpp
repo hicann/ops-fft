@@ -85,9 +85,10 @@ extern "C" aclError aclfftIrfft1DDft(float *x, float *y, uint32_t n, int32_t nor
 
     std::vector<float> dftMatrix = GenerateDftMatrixC2R(fftN, isForward != 0);
 
-    uint32_t inputSize = batches * (fftN / 2 + 1) * sizeof(float) * 2;
+    // 用 size_t 计算，避免 batches*(fftN/2+1) 等中间结果在 uint32_t 域溢出截断（issue #77）
+    size_t inputSize = static_cast<size_t>(batches) * (fftN / 2 + 1) * sizeof(float) * 2;
     uint32_t dftMatrixSize = dftMatrix.size() * sizeof(float);
-    uint32_t outputSize = batches * fftN * sizeof(float);
+    size_t outputSize = static_cast<size_t>(batches) * fftN * sizeof(float);
     uint32_t sysWorkspaceSize = ascendcPlatform->GetLibApiWorkSpaceSize();
     uint32_t tilingSize = sizeof(Irfft1DDftTilingData);
 

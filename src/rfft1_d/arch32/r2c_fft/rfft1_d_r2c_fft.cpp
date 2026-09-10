@@ -173,7 +173,8 @@ extern "C" aclError aclfftRfft1DR2CFft(float *x, float *y, uint32_t n,
     CHECK_ACL(aclrtMemcpy(dRadix, radixListHost.size()*sizeof(int32_t), radixListHost.data(), radixListHost.size()*sizeof(int32_t), ACL_MEMCPY_HOST_TO_DEVICE));
     CHECK_ACL(aclrtMemcpy(dTil, sizeof(OpsFft::FftAllMixTilingData), &tilingData, sizeof(OpsFft::FftAllMixTilingData), ACL_MEMCPY_HOST_TO_DEVICE));
     if (!inputIndex.empty()) CHECK_ACL(aclrtMemcpy(dInIdx, inputIndex.size()*sizeof(uint32_t), inputIndex.data(), inputIndex.size()*sizeof(uint32_t), ACL_MEMCPY_HOST_TO_DEVICE));
-    else { float z=0; CHECK_ACL(aclrtMemcpy(dA, sizeof(float), &z, sizeof(float), ACL_MEMCPY_HOST_TO_DEVICE)); }
+    // 无索引时也应保证 dInIdx 有确定内容，此前误写为 dA（issue #85）
+    else { float z=0; CHECK_ACL(aclrtMemcpy(dInIdx, sizeof(float), &z, sizeof(float), ACL_MEMCPY_HOST_TO_DEVICE)); }
     if (!aTable.empty()) CHECK_ACL(aclrtMemcpy(dA, aTable.size()*sizeof(float), aTable.data(), aTable.size()*sizeof(float), ACL_MEMCPY_HOST_TO_DEVICE));
     else { float z=0; CHECK_ACL(aclrtMemcpy(dA, sizeof(float), &z, sizeof(float), ACL_MEMCPY_HOST_TO_DEVICE)); }
     if (!bTable.empty()) CHECK_ACL(aclrtMemcpy(dB, bTable.size()*sizeof(float), bTable.data(), bTable.size()*sizeof(float), ACL_MEMCPY_HOST_TO_DEVICE));

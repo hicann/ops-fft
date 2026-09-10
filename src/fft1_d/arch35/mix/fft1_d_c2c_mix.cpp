@@ -134,12 +134,13 @@ extern "C" aclError aclfftFft1DC2CMix(float *x, float *y, uint32_t n, int32_t no
     std::vector<float> allDftMatrices = GenerateMixDft(radixListHost, isInverse);
     std::vector<float> allTwiddleFactors = GenerateMixTwiddle(radixListHost, isInverse);
 
-    const uint32_t inputSize = n * batches * sizeof(float) * 2;
-    const uint32_t outputSize = inputSize;
+    // 用 size_t 计算，避免 n*batches 等中间结果在 uint32_t 域溢出截断（issue #74）
+    const size_t inputSize = static_cast<size_t>(n) * batches * sizeof(float) * 2;
+    const size_t outputSize = inputSize;
     const uint32_t dftMatrixSize = allDftMatrices.size() * sizeof(float);
     const uint32_t twSize = allTwiddleFactors.size() * sizeof(float);
     const uint32_t radixListSize = radixListHost.size() * sizeof(int32_t);
-    const uint32_t workspaceSize = 2 * batches * n * sizeof(float) * 2;
+    const size_t workspaceSize = 2 * static_cast<size_t>(batches) * n * sizeof(float) * 2;
     const uint32_t tilingSize = sizeof(FftAllMixTilingData);
 
     void *dev_input = nullptr;

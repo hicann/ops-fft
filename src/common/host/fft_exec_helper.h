@@ -26,6 +26,21 @@ constexpr int K_RADIX_ANY = -1;
 constexpr int K_N_FFT_256 = 256;
 constexpr int K_N_FFT_32768 = 32768;
 
+// R2C/C2R 1D exec 入口公共校验（arch32/arch35 共用，消除跨文件重复）：
+// 空指针、rank=1 校验，并拒绝 VERTICAL（stride>1）布局——R2C/C2R 无 stride 路径，
+// 纵向 plan 显式返回 NOT_IMPLEMENTED 而非按 batch=1 静默计算（issue #75）。
+// 注意：fft1_d C2C 不适用本宏（Ascend910B 的 Stride kernel 支持纵向布局）。
+#define ACLFFT_EXEC_1D_ENTRY_CHECKS(impl, idata, odata, tag) \
+    do { \
+        ACLFFT_CHECK_PARAM((impl) != nullptr && (idata) != nullptr && (odata) != nullptr, ACLFFT_INVALID_VALUE); \
+        ACLFFT_CHECK_PARAM((impl)->rank == 1, ACLFFT_INVALID_VALUE); \
+        if ((impl)->stride[0] > 1) { \
+            std::cerr << "[ops-fft] " << tag << ": VERTICAL layout (stride=" << (impl)->stride[0] \
+                      << ") is not supported" << std::endl; \
+            return ACLFFT_NOT_IMPLEMENTED; \
+        } \
+    } while (0)
+
 inline const char* SocVersionToString(platform_ascendc::SocVersion v) {
     using SV = platform_ascendc::SocVersion;
     switch (v) {

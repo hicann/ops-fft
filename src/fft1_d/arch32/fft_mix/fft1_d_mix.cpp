@@ -17,6 +17,11 @@
 
 extern "C" aclError aclfftFft1DMix(float *x, float *y, uint32_t n,
                                     uint32_t batches, int isForward, void *stream) {
+    // 防护: 本函数经 ACLFFT_API 导出可被外部直接调用，需校验输入输出指针（issue #76）
+    if (x == nullptr || y == nullptr) {
+        std::cerr << "[ops-fft] aclfftFft1DMix: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
     auto plat = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = plat->GetCoreNumAic(); if (coreNum == 0) coreNum = 1;
     uint32_t maxCore = std::min(coreNum, 20u);
@@ -33,15 +38,11 @@ extern "C" aclError aclfftFft1DMix(float *x, float *y, uint32_t n,
     int64_t radixListLen = (int64_t)radixVec.size();
 
     // 2. DFT matrix
+    // GenWMatrix*ForMultiLen 内部按 radixListLen 循环，单 radix（==1）同样适用，无需分支（issue #84）
     int64_t dftLen = GetTwiddleMatrixLen(fftN, radixVec);
     std::vector<float> dftHost(dftLen, 0.0f);
-    if (radixListLen > 1) {
-        if (forward) GenWMatrixForwardForMultiLen(radixListLen, radixVec.data(), fftN, dftHost.data());
-        else GenWMatrixInverseForMultiLen(radixListLen, radixVec.data(), fftN, dftHost.data());
-    } else {
-        if (forward) GenWMatrixForwardForMultiLen(radixListLen, radixVec.data(), fftN, dftHost.data());
-        else GenWMatrixInverseForMultiLen(radixListLen, radixVec.data(), fftN, dftHost.data());
-    }
+    if (forward) GenWMatrixForwardForMultiLen(radixListLen, radixVec.data(), fftN, dftHost.data());
+    else GenWMatrixInverseForMultiLen(radixListLen, radixVec.data(), fftN, dftHost.data());
 
     // 3. Twiddle matrix
     int64_t twLen = GetTwMatrixLen(fftN, radixVec);

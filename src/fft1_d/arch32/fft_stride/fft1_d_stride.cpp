@@ -44,6 +44,11 @@ static uint32_t ComputeS0(uint32_t fftN, uint32_t strideSize) {
 
 aclError aclfftFft1DStride(float *x, float *y, uint32_t n, uint32_t stride,
                            uint32_t batches, int isForward, void *stream) {
+    // 防护: 本函数经 ACLFFT_API 导出可被外部直接调用，需校验输入输出指针（issue #76）
+    if (x == nullptr || y == nullptr) {
+        std::cerr << "[ops-fft] aclfftFft1DStride: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = ascendcPlatform->GetCoreNumAic();
     if (coreNum == 0) {
@@ -87,8 +92,10 @@ aclError aclfftFft1DStride(float *x, float *y, uint32_t n, uint32_t stride,
             radixVec = {64, 64, 64};
             break;
         default:
-            throw std::runtime_error("FFTCoreStride fftN is not in [2^8, 2^18] or not 2^n, init_radix failed");
-            break;
+            // 不再 throw：异常会穿透 extern "C" 边界导致 C 调用方进程终止（issue #72）
+            std::cerr << "[ops-fft] aclfftFft1DStride: n=" << n
+                      << " not supported (must be power of 2 in [2^8, 2^18])" << std::endl;
+            return ACL_ERROR_INVALID_PARAM;
     }
 
     // 2、 InitSMatrix    

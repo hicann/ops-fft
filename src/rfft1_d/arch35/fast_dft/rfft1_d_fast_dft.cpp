@@ -36,7 +36,8 @@ static const uint32_t TWIDDLE_MATRICES_AMOUNT = 2;
 static const uint32_t DFT_BORDER_VALUE = 4096;
 static const uint32_t DFT_OFFSETS_COUNT = 3;
 static const uint32_t RFFT_SYMMETRY_DIVISOR = 2;
-static const uint32_t BACKWARD = 1;
+// 归一化值域与 rfft1_d.h 文档对齐：0=BACKWARD（不缩放）、1=ORTHO（1/sqrt(n)）、2=FORWARD（1/n）（issue #82）
+static const uint32_t BACKWARD = 0;
 static const uint32_t FORWARD = 2;
 
 #define CHECK_ACL(call)                                              \

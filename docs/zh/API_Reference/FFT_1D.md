@@ -237,11 +237,12 @@ aclfftResult aclfftExecC2R(aclfftHandle     plan,
 - 仅支持 FP32。复数以 `aclfftComplex{float x, y}` 实虚交错存储，实数以 `aclfftReal`（float）存储。
 - aclfftPlan1d
   - 对横向FFT：
-      - fftSize需保证不超过$2^{27}$且分解质因数后不包含超过199的质因子。
+      - fftSize需保证不超过$2^{27}$且分解质因数后不包含超过47的质因子（与分芯片表格及 RADIX_MIX 实现一致）。
       - batchSize在存储允许范围内应无额外约束。
       - 输入的元素个数理论支持[1，$2^{30}$]。
       - 当前功能实现所限，横向FFT输入长度（fftSize）大于等于32768且为2的幂的时候，会修改输入数据，需提前做好备份。
   - 对纵向FFT：
+    - 纵向FFT当前仅在 Ascend 910B 上支持 C2C（Stride kernel）；其余变换（R2C/C2R）及 Ascend 950 上的纵向 plan 在执行时返回 ACLFFT_NOT_IMPLEMENTED。
     - fftSize需保证是2的幂且大于等于256、小于等于65536。
     - batchSize需保证是128的整数倍。
     - 输入的元素个数理论支持[1，$2^{30}$]。
@@ -263,6 +264,8 @@ aclfftResult aclfftExecC2R(aclfftHandle     plan,
 | C2R | C2R FFT（`aclfftIrfft1DC2RFft`） | radix==mix | 1024 < nx ≤ $2^{27}$，质因子 ⊆ {2,3,5,7,11,13,17,19,23,29,31,37,41,43,47} | 任意 | 横向 | **仅后向** | 复数（aclfftComplex） |
 
 ### Ascend 950（arch35）
+
+> 注：Ascend 950 暂不支持纵向（VERTICAL）1D FFT，纵向 plan 执行时返回 `ACLFFT_NOT_IMPLEMENTED`。
 
 | 算子 | Kernel（接口） | 触发条件 | fftSize(nx) | batch | 横向/纵向 | 前向/后向 | 输入类型 |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
