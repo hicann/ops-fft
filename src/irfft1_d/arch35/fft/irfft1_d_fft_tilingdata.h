@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef IRFFT1_D_DFT_TILINGDATA_H
-#define IRFFT1_D_DFT_TILINGDATA_H
+#ifndef IRFFT1_D_FFT_TILINGDATA_H
+#define IRFFT1_D_FFT_TILINGDATA_H
 
 #include <cstdint>
 
