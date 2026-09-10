@@ -693,7 +693,7 @@ __aicore__ __inline__ void SeperateRIwithCalculation(__gm__ float *__restrict__ 
         SET_FLAG(MTE2, V, event_id);
         WAIT_FLAG(MTE2, V, event_id);
 
-        // seperate RI
+        // separate RI
         vec_vreduce(reinterpret_cast<__ubuf__ uint32_t *>((uintptr_t)(output_ub.GetPhyAddr())),
                     reinterpret_cast<__ubuf__ uint32_t *>((uintptr_t)(input1_ub.GetPhyAddr())), M * N0, 1);
         vec_vreduce(reinterpret_cast<__ubuf__ uint32_t *>((uintptr_t)(output_ub.GetPhyAddr())) + M / 2 * N0,

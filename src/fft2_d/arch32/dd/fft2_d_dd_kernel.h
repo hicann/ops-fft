@@ -143,7 +143,7 @@ __aicore__ __inline__ void SeperateRIMultiBatch(
 
         AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(event_id);
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(event_id);
-        // seperate
+        // separate
         int32_t repeat_count = (row_count_current * y_len * COMPLEX_DOUBLE) / (BLOCK_PER_REPEAT * BLOCK_SIZE);
         int32_t repeat_tail = (row_count_current * y_len * COMPLEX_DOUBLE) % (BLOCK_PER_REPEAT * BLOCK_SIZE);
         int32_t all_repeat_times = repeat_count + (repeat_tail > 0 ? 1 : 0);
@@ -196,7 +196,7 @@ __aicore__ __inline__ void SeperateRI(
         LoadDataFromGmToUb(complex_buf_ub_tensor, src_gm_tensor[loop_idx * max_datacount_perloop * COMPLEX_DOUBLE],  count_current * COMPLEX_DOUBLE);
         AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(event_id);
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(event_id);
-        // seperate
+        // separate
         int32_t repeat_count = (count_current * COMPLEX_DOUBLE) / (BLOCK_PER_REPEAT * BLOCK_SIZE);
         int32_t repeat_tail = (count_current * COMPLEX_DOUBLE) % (BLOCK_PER_REPEAT * BLOCK_SIZE);
         int32_t all_repeat_times = repeat_count + (repeat_tail > 0 ? 1 : 0);

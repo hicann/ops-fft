@@ -1018,7 +1018,7 @@ __aicore__ __inline__ void SeperateRIwithRadix2(__gm__ float *__restrict__ gm_in
             SET_FLAG(MTE2, V, event_id);
             WAIT_FLAG(MTE2, V, event_id);
 
-            // seperate RI
+            // separate RI
             int32_t total_len = M / 2 * N0 * 2;  // M / 2 means 2 fft batch, 2 means RI
             int32_t repeat = total_len / 64;     // M / 2 means 2 fft batch, 2 means RI
 
@@ -1276,7 +1276,7 @@ __aicore__ __inline__ void SeperateRIwithRadix4(__gm__ float *__restrict__ gm_in
             SET_FLAG(MTE2, V, event_id);
             WAIT_FLAG(MTE2, V, event_id);
 
-            // seperate RI
+            // separate RI
             int32_t total_len = M / 2 * N0 * 2;  // M / 2 means 2 fft batch, 2 means RI
             int32_t repeat = total_len / 64;     // M / 2 means 2 fft batch, 2 means RI
             uint64_t rsvdCnt = 0; // 用于保存筛选后保留下来的元素个数

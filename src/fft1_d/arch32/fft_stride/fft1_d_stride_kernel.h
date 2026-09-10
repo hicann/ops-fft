@@ -220,7 +220,7 @@ __aicore__ __inline__ void SeperateRI(__gm__ float *__restrict__ gm_dst, __gm__ 
                            n_repeat_current, dValue * COMPLEX_DOUBLE, srcDValue * COMPLEX_DOUBLE);
         SET_FLAG(MTE2, V, event_id);
         WAIT_FLAG(MTE2, V, event_id);
-        // seperate
+        // separate
         int32_t repeat_count = n_repeat_current * dValue * COMPLEX_DOUBLE / (BLOCK_PER_REPEAT * BLOCK_SIZE);
         uint64_t rsvdCnt = 0;
         vreducev2(reinterpret_cast<__ubuf__ uint32_t *>(real_buf), reinterpret_cast<__ubuf__ uint32_t *>(complex_buf),
