@@ -23,6 +23,7 @@
 #include "lib/matrix/matmul/matmul.h"
 #include "lib/matmul_intf.h"
 #include "../../rfft1_d.h"
+#include "../../rfft1_d_size_utils.h"
 
 static const uint32_t LAST_FACTOR = 64;
 static const uint32_t COMPLEX_PART = 2;
@@ -322,11 +323,9 @@ extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, u
 
     uint32_t sysWorkspaceSize = ascendcPlatform->GetLibApiWorkSpaceSize();
 
-    // 用 size_t 计算，避免 ((n/2)+1)*2*batches 等中间结果在 uint32_t 域溢出截断（issue #59）
-    const size_t inputSize = static_cast<size_t>(n) * static_cast<size_t>(batches) * sizeof(float);
+    const size_t inputSize = rfft1_d::InputSize(n, batches);
     const size_t dftSize = dft.size() * sizeof(float);
-    const size_t outputSize = (static_cast<size_t>(n / RFFT_SYMMETRY_DIVISOR) + 1) * COMPLEX_PART *
-                              static_cast<size_t>(batches) * sizeof(float);
+    const size_t outputSize = rfft1_d::OutputSize(n, batches);
 
     void *dev_x = nullptr;
     void *dev_dft = nullptr;

@@ -12,6 +12,7 @@
 #include "fft_common_core.h"
 #include "rfft1_d_fft_tilingdata.h"
 #include "rfft1_d_fft_kernel.h"
+#include "../../rfft1_d_size_utils.h"
 
 static int32_t FindRadixHost(int64_t n)
 {
@@ -174,16 +175,15 @@ extern "C" aclError aclfftRfft1DFft(float *x, float *y, uint32_t n, int32_t norm
         twPostProcess = GenerateTwPostProcess(fftN);
     }
 
-    const uint32_t inputSize = batches * n * sizeof(float);
-    const uint32_t outputSize = batches * (n / 2 + 1) * sizeof(float) * 2;
-    const uint32_t dftMatrixSize = allDftMatrices.size() * sizeof(float);
-    const uint32_t twSize = allTwiddleFactors.size() * sizeof(float);
-    const uint32_t twPostSize = twPostProcess.size() * sizeof(float);
-    const uint32_t radixListSize = tilingData.radixListLen * sizeof(float);
+    const size_t inputSize = rfft1_d::InputSize(n, batches);
+    const size_t outputSize = rfft1_d::OutputSize(n, batches);
+    const size_t dftMatrixSize = allDftMatrices.size() * sizeof(float);
+    const size_t twSize = allTwiddleFactors.size() * sizeof(float);
+    const size_t twPostSize = twPostProcess.size() * sizeof(float);
+    const size_t radixListSize = static_cast<size_t>(tilingData.radixListLen) * sizeof(float);
 
-    int64_t fftPointCount = isOddN ? fftN : (fftN / 2);
-    const uint32_t workspaceSize = 2 * fftPointCount * batches * sizeof(float) * 2;
-    const uint32_t tilingSize = sizeof(Rfft1DFftTilingData);
+    const size_t workspaceSize = rfft1_d::FftWorkspaceSize(n, batches);
+    const size_t tilingSize = sizeof(Rfft1DFftTilingData);
 
     void *dev_input = nullptr;
     void *dev_output = nullptr;
