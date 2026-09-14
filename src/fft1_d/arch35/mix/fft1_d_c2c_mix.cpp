@@ -21,8 +21,8 @@
 
 static constexpr int64_t MIX_ALLOWED_RADICES[] = {2, 3, 5, 7, 11, 13, 17, 19};
 
-static int SetMixTilingData(FftAllMixTilingData &t, int64_t fftN, int32_t isInverse, uint32_t batches,
-                            std::vector<int32_t> &radixList)
+static int SetMixTilingData(
+    FftAllMixTilingData& t, int64_t fftN, int32_t isInverse, uint32_t batches, std::vector<int32_t>& radixList)
 {
     t.batchSize = static_cast<int64_t>(batches);
     t.fftN = fftN;
@@ -31,7 +31,9 @@ static int SetMixTilingData(FftAllMixTilingData &t, int64_t fftN, int32_t isInve
     t.scaleOut = 0;
     t.transpose = 0;
     t.isOddN = 0;
-    for (int i = 0; i < 5; i++) { t.workspaceOffsets[i] = 0; }
+    for (int i = 0; i < 5; i++) {
+        t.workspaceOffsets[i] = 0;
+    }
     for (int i = 0; i < MAX_FFT_STAGES_TILING_MIX; i++) {
         t.radix_arr[i] = 0;
         t.M_arr[i] = 0;
@@ -51,22 +53,25 @@ static int SetMixTilingData(FftAllMixTilingData &t, int64_t fftN, int32_t isInve
     }
     if (tempN != 1) {
         std::cerr << "fft1_d_c2c_mix: unsupported factor remains: " << tempN << std::endl;
-        return 1;
+        // 质因子超出支持域属能力不支持，返回参数错误供 exec 层翻译为 NOT_IMPLEMENTED（issue #97）
+        return ACL_ERROR_INVALID_PARAM;
     }
     if (radixList.empty()) {
         std::cerr << "fft1_d_c2c_mix: empty radix list for N=" << fftN << std::endl;
-        return 1;
+        return ACL_ERROR_INVALID_PARAM;
     }
     t.radixListLen = static_cast<int32_t>(radixList.size());
     return 0;
 }
 
 // original-exact dft layout: per stage 2*r*r floats, [re,im] at (q*r+p)*2
-static std::vector<float> GenerateMixDft(const std::vector<int32_t> &radixList, int32_t isInverse)
+static std::vector<float> GenerateMixDft(const std::vector<int32_t>& radixList, int32_t isInverse)
 {
     double sign = (isInverse == 0) ? -1.0 : 1.0;
     size_t total = 0;
-    for (auto r : radixList) { total += static_cast<size_t>(r) * r * 2; }
+    for (auto r : radixList) {
+        total += static_cast<size_t>(r) * r * 2;
+    }
     std::vector<float> dft(total, 0.0f);
     size_t offset = 0;
     for (auto r : radixList) {
@@ -83,13 +88,17 @@ static std::vector<float> GenerateMixDft(const std::vector<int32_t> &radixList, 
 }
 
 // original-exact twiddle layout: per stage 2*r*prev floats, [re,im] at (p*prev+j)*2
-static std::vector<float> GenerateMixTwiddle(const std::vector<int32_t> &radixList, int32_t isInverse)
+static std::vector<float> GenerateMixTwiddle(const std::vector<int32_t>& radixList, int32_t isInverse)
 {
     double sign = (isInverse == 0) ? -1.0 : 1.0;
     size_t total = 0;
     int64_t prev = 1;
     int64_t len = 1;
-    for (auto r : radixList) { len *= r; total += static_cast<size_t>(r) * prev * 2; prev = len; }
+    for (auto r : radixList) {
+        len *= r;
+        total += static_cast<size_t>(r) * prev * 2;
+        prev = len;
+    }
     std::vector<float> tw(total, 0.0f);
     size_t offset = 0;
     prev = 1;
@@ -109,18 +118,26 @@ static std::vector<float> GenerateMixTwiddle(const std::vector<int32_t> &radixLi
     return tw;
 }
 
-extern "C" aclError aclfftFft1DC2CMix(float *x, float *y, uint32_t n, int32_t norm,
-                                       uint32_t batches, int isForward, void *stream)
+extern "C" aclError aclfftFft1DC2CMix(
+    float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, int isForward, void* stream)
 {
     // 防护: 本函数经 ACLFFT_API 导出可被外部直接调用，需校验输入输出指针（issue #52）
     if (x == nullptr || y == nullptr) {
         std::cerr << "[ops-fft] aclfftFft1DC2CMix: input/output pointer is null" << std::endl;
         return ACL_ERROR_INVALID_PARAM;
     }
+    // 当前版本仅支持 norm=0（BACKWARD，无缩放）；norm!=0 显式报错而非静默忽略（issue #90）
+    if (norm != 0) {
+        std::cerr << "[ops-fft] aclfftFft1DC2CMix: norm=" << norm
+                  << " is not supported (only 0=BACKWARD in this version)" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
     (void)norm;
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = ascendcPlatform->GetCoreNumAiv();
-    if (coreNum == 0) { coreNum = 1; }
+    if (coreNum == 0) {
+        coreNum = 1;
+    }
 
     int32_t isInverse = 1 - isForward;
     int64_t fftN = static_cast<int64_t>(n);
@@ -128,7 +145,8 @@ extern "C" aclError aclfftFft1DC2CMix(float *x, float *y, uint32_t n, int32_t no
     FftAllMixTilingData tilingData;
     std::vector<int32_t> radixListHost;
     if (SetMixTilingData(tilingData, fftN, isInverse, batches, radixListHost) != 0) {
-        return 1;
+        // 质因子不支持：按能力不支持返回参数错误，exec 层翻译为 NOT_IMPLEMENTED（issue #97）
+        return ACL_ERROR_INVALID_PARAM;
     }
 
     std::vector<float> allDftMatrices = GenerateMixDft(radixListHost, isInverse);
@@ -143,13 +161,13 @@ extern "C" aclError aclfftFft1DC2CMix(float *x, float *y, uint32_t n, int32_t no
     const size_t workspaceSize = 2 * static_cast<size_t>(batches) * n * sizeof(float) * 2;
     const uint32_t tilingSize = sizeof(FftAllMixTilingData);
 
-    void *dev_input = nullptr;
-    void *dev_output = nullptr;
-    void *dev_dft_matrix = nullptr;
-    void *dev_tw_matrix = nullptr;
-    void *dev_radix_list = nullptr;
-    void *dev_workspace = nullptr;
-    void *dev_tiling = nullptr;
+    void* dev_input = nullptr;
+    void* dev_output = nullptr;
+    void* dev_dft_matrix = nullptr;
+    void* dev_tw_matrix = nullptr;
+    void* dev_radix_list = nullptr;
+    void* dev_workspace = nullptr;
+    void* dev_tiling = nullptr;
 
     CHECK_ACL(aclrtMalloc(&dev_input, inputSize, ACL_MEM_MALLOC_HUGE_FIRST));
     CHECK_ACL(aclrtMalloc(&dev_output, outputSize, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -168,20 +186,17 @@ extern "C" aclError aclfftFft1DC2CMix(float *x, float *y, uint32_t n, int32_t no
     std::unique_ptr<void, AclrtFreeDeleter> d_tiling_guard(dev_tiling);
 
     CHECK_ACL(aclrtMemcpy(dev_input, inputSize, x, inputSize, ACL_MEMCPY_HOST_TO_DEVICE));
-    CHECK_ACL(aclrtMemcpy(dev_dft_matrix, dftMatrixSize, allDftMatrices.data(), dftMatrixSize, ACL_MEMCPY_HOST_TO_DEVICE));
+    CHECK_ACL(
+        aclrtMemcpy(dev_dft_matrix, dftMatrixSize, allDftMatrices.data(), dftMatrixSize, ACL_MEMCPY_HOST_TO_DEVICE));
     CHECK_ACL(aclrtMemcpy(dev_tw_matrix, twSize, allTwiddleFactors.data(), twSize, ACL_MEMCPY_HOST_TO_DEVICE));
-    CHECK_ACL(aclrtMemcpy(dev_radix_list, radixListSize, radixListHost.data(), radixListSize, ACL_MEMCPY_HOST_TO_DEVICE));
+    CHECK_ACL(
+        aclrtMemcpy(dev_radix_list, radixListSize, radixListHost.data(), radixListSize, ACL_MEMCPY_HOST_TO_DEVICE));
     CHECK_ACL(aclrtMemcpy(dev_tiling, tilingSize, &tilingData, tilingSize, ACL_MEMCPY_HOST_TO_DEVICE));
 
     fft_c2c_arch35_mix_multi_core<<<coreNum, nullptr, stream>>>(
-        (__gm__ float *)dev_input,
-        (__gm__ float *)dev_dft_matrix,
-        (__gm__ float *)dev_tw_matrix,
-        (__gm__ int32_t *)dev_radix_list,
-        (__gm__ float *)dev_output,
-        (__gm__ float *)dev_workspace,
-        (__gm__ uint8_t *)dev_tiling
-    );
+        (__gm__ float*)dev_input, (__gm__ float*)dev_dft_matrix, (__gm__ float*)dev_tw_matrix,
+        (__gm__ int32_t*)dev_radix_list, (__gm__ float*)dev_output, (__gm__ float*)dev_workspace,
+        (__gm__ uint8_t*)dev_tiling);
 
     CHECK_ACL(aclrtSynchronizeStream(stream));
     CHECK_ACL(aclrtMemcpy(y, outputSize, dev_output, outputSize, ACL_MEMCPY_DEVICE_TO_HOST));

@@ -16,10 +16,14 @@
 
 static int32_t FindRadixHost(int64_t n)
 {
-    if (n % 2 == 0) return 2;
-    if (n % 3 == 0) return 3;
-    if (n % 5 == 0) return 5;
-    if (n % 7 == 0) return 7;
+    if (n % 2 == 0)
+        return 2;
+    if (n % 3 == 0)
+        return 3;
+    if (n % 5 == 0)
+        return 5;
+    if (n % 7 == 0)
+        return 7;
     return 0;
 }
 
@@ -77,8 +81,8 @@ static std::vector<float> GenerateTwPostProcess(int64_t fftN)
     return twPost;
 }
 
-static int SetTilingData(Rfft1DFftTilingData &tiling, int64_t fftN, int32_t isInverse,
-                          uint32_t coreNum, uint32_t batches)
+static int SetTilingData(
+    Rfft1DFftTilingData& tiling, int64_t fftN, int32_t isInverse, uint32_t coreNum, uint32_t batches)
 {
     tiling.batchSize = batches;
     tiling.fftN = fftN;
@@ -96,7 +100,8 @@ static int SetTilingData(Rfft1DFftTilingData &tiling, int64_t fftN, int32_t isIn
         int32_t radix = FindRadixHost(tempN);
         if (radix == 0) {
             std::cerr << "rfft1_d_fft: cannot factorize N=" << tempN << std::endl;
-            return 1;
+            // 质因子超出 {2,3,5,7} 支持域，返回参数错误供 exec 层翻译为 NOT_IMPLEMENTED（issue #97）
+            return ACL_ERROR_INVALID_PARAM;
         }
 
         int64_t M = tempN / radix;
@@ -130,11 +135,17 @@ static int SetTilingData(Rfft1DFftTilingData &tiling, int64_t fftN, int32_t isIn
     return 0;
 }
 
-extern "C" aclError aclfftRfft1DFft(float *x, float *y, uint32_t n, int32_t norm,
-                                          uint32_t batches, int isForward, void *stream)
+extern "C" aclError aclfftRfft1DFft(
+    float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, int isForward, void* stream)
 {
     if (x == nullptr || y == nullptr) {
         std::cerr << "[ops-fft] aclfftRfft1DFft: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
+    // 当前版本仅支持 norm=0（BACKWARD，无缩放）；norm!=0 显式报错而非静默忽略（issue #89）
+    if (norm != 0) {
+        std::cerr << "[ops-fft] aclfftRfft1DFft: norm=" << norm << " is not supported (only 0=BACKWARD in this version)"
+                  << std::endl;
         return ACL_ERROR_INVALID_PARAM;
     }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
@@ -148,7 +159,8 @@ extern "C" aclError aclfftRfft1DFft(float *x, float *y, uint32_t n, int32_t norm
 
     Rfft1DFftTilingData tilingData = {};
     if (SetTilingData(tilingData, fftN, isInverse, coreNum, batches) != 0) {
-        return 1;
+        // 质因子不支持：按能力不支持返回参数错误，exec 层翻译为 NOT_IMPLEMENTED（issue #97）
+        return ACL_ERROR_INVALID_PARAM;
     }
 
     std::vector<float> allDftMatrices;
@@ -185,14 +197,14 @@ extern "C" aclError aclfftRfft1DFft(float *x, float *y, uint32_t n, int32_t norm
     const size_t workspaceSize = rfft1_d::FftWorkspaceSize(n, batches);
     const size_t tilingSize = sizeof(Rfft1DFftTilingData);
 
-    void *dev_input = nullptr;
-    void *dev_output = nullptr;
-    void *dev_dft_matrix = nullptr;
-    void *dev_tw_matrix = nullptr;
-    void *dev_tw_post = nullptr;
-    void *dev_radix_list = nullptr;
-    void *dev_workspace = nullptr;
-    void *dev_tiling = nullptr;
+    void* dev_input = nullptr;
+    void* dev_output = nullptr;
+    void* dev_dft_matrix = nullptr;
+    void* dev_tw_matrix = nullptr;
+    void* dev_tw_post = nullptr;
+    void* dev_radix_list = nullptr;
+    void* dev_workspace = nullptr;
+    void* dev_tiling = nullptr;
 
     CHECK_ACL(aclrtMalloc(&dev_input, inputSize, ACL_MEM_MALLOC_HUGE_FIRST));
     CHECK_ACL(aclrtMalloc(&dev_output, outputSize, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -213,7 +225,8 @@ extern "C" aclError aclfftRfft1DFft(float *x, float *y, uint32_t n, int32_t norm
     std::unique_ptr<void, AclrtFreeDeleter> d_tiling_guard(dev_tiling);
 
     CHECK_ACL(aclrtMemcpy(dev_input, inputSize, x, inputSize, ACL_MEMCPY_HOST_TO_DEVICE));
-    CHECK_ACL(aclrtMemcpy(dev_dft_matrix, dftMatrixSize, allDftMatrices.data(), dftMatrixSize, ACL_MEMCPY_HOST_TO_DEVICE));
+    CHECK_ACL(
+        aclrtMemcpy(dev_dft_matrix, dftMatrixSize, allDftMatrices.data(), dftMatrixSize, ACL_MEMCPY_HOST_TO_DEVICE));
     CHECK_ACL(aclrtMemcpy(dev_tw_matrix, twSize, allTwiddleFactors.data(), twSize, ACL_MEMCPY_HOST_TO_DEVICE));
     if (twPostSize > 0) {
         CHECK_ACL(aclrtMemcpy(dev_tw_post, twPostSize, twPostProcess.data(), twPostSize, ACL_MEMCPY_HOST_TO_DEVICE));
@@ -223,20 +236,15 @@ extern "C" aclError aclfftRfft1DFft(float *x, float *y, uint32_t n, int32_t norm
     for (int32_t s = 0; s < tilingData.radixListLen; s++) {
         radixListHost[s] = static_cast<float>(tilingData.radix_arr[s]);
     }
-    CHECK_ACL(aclrtMemcpy(dev_radix_list, radixListSize, radixListHost.data(), radixListSize, ACL_MEMCPY_HOST_TO_DEVICE));
+    CHECK_ACL(
+        aclrtMemcpy(dev_radix_list, radixListSize, radixListHost.data(), radixListSize, ACL_MEMCPY_HOST_TO_DEVICE));
 
     CHECK_ACL(aclrtMemcpy(dev_tiling, tilingSize, &tilingData, tilingSize, ACL_MEMCPY_HOST_TO_DEVICE));
 
     fft_r2c_multi_core<<<coreNum, nullptr, stream>>>(
-        (__gm__ float *)dev_input,
-        (__gm__ float *)dev_dft_matrix,
-        (__gm__ float *)dev_tw_matrix,
-        (__gm__ float *)dev_tw_post,
-        (__gm__ float *)dev_radix_list,
-        (__gm__ float *)dev_output,
-        (__gm__ float *)dev_workspace,
-        (__gm__ uint8_t *)dev_tiling
-    );
+        (__gm__ float*)dev_input, (__gm__ float*)dev_dft_matrix, (__gm__ float*)dev_tw_matrix,
+        (__gm__ float*)dev_tw_post, (__gm__ float*)dev_radix_list, (__gm__ float*)dev_output,
+        (__gm__ float*)dev_workspace, (__gm__ uint8_t*)dev_tiling);
 
     CHECK_ACL(aclrtSynchronizeStream(stream));
 

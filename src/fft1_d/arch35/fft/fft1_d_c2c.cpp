@@ -21,14 +21,22 @@
 
 static int32_t FindRadix(int64_t n)
 {
-    if (n % 2 == 0) return 2;
-    if (n % 3 == 0) return 3;
-    if (n % 5 == 0) return 5;
-    if (n % 7 == 0) return 7;
-    if (n % 11 == 0) return 11;
-    if (n % 13 == 0) return 13;
-    if (n % 17 == 0) return 17;
-    if (n % 19 == 0) return 19;
+    if (n % 2 == 0)
+        return 2;
+    if (n % 3 == 0)
+        return 3;
+    if (n % 5 == 0)
+        return 5;
+    if (n % 7 == 0)
+        return 7;
+    if (n % 11 == 0)
+        return 11;
+    if (n % 13 == 0)
+        return 13;
+    if (n % 17 == 0)
+        return 17;
+    if (n % 19 == 0)
+        return 19;
     return 0;
 }
 
@@ -70,8 +78,8 @@ static std::vector<float> GenerateTwiddleFactors(int32_t radix, int64_t M, int32
     return tw;
 }
 
-static int SetTilingData(Fft1DC2CTilingData &tiling, int64_t fftN, int32_t isInverse,
-                         uint32_t coreNum, uint32_t batches)
+static int SetTilingData(
+    Fft1DC2CTilingData& tiling, int64_t fftN, int32_t isInverse, uint32_t coreNum, uint32_t batches)
 {
     tiling.batchSize = batches;
     tiling.fftN = fftN;
@@ -117,12 +125,18 @@ static int SetTilingData(Fft1DC2CTilingData &tiling, int64_t fftN, int32_t isInv
     return 0;
 }
 
-extern "C" aclError aclfftFft1DC2C(float *x, float *y, uint32_t n, int32_t norm,
-                                          uint32_t batches, int isForward, void *stream)
+extern "C" aclError aclfftFft1DC2C(
+    float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, int isForward, void* stream)
 {
     // 防护: 本函数经 ACLFFT_API 导出可被外部直接调用，需校验输入输出指针（issue #81）
     if (x == nullptr || y == nullptr) {
         std::cerr << "[ops-fft] aclfftFft1DC2C: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
+    // 当前版本仅支持 norm=0（BACKWARD，无缩放）；norm!=0 显式报错而非静默忽略（issue #90）
+    if (norm != 0) {
+        std::cerr << "[ops-fft] aclfftFft1DC2C: norm=" << norm << " is not supported (only 0=BACKWARD in this version)"
+                  << std::endl;
         return ACL_ERROR_INVALID_PARAM;
     }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
@@ -167,13 +181,13 @@ extern "C" aclError aclfftFft1DC2C(float *x, float *y, uint32_t n, int32_t norm,
     const size_t workspaceSize = 2 * static_cast<size_t>(batches) * n * sizeof(float) * 2;
     const uint32_t tilingSize = sizeof(Fft1DC2CTilingData);
 
-    void *dev_input = nullptr;
-    void *dev_output = nullptr;
-    void *dev_dft_matrix = nullptr;
-    void *dev_tw_matrix = nullptr;
-    void *dev_radix_list = nullptr;
-    void *dev_workspace = nullptr;
-    void *dev_tiling = nullptr;
+    void* dev_input = nullptr;
+    void* dev_output = nullptr;
+    void* dev_dft_matrix = nullptr;
+    void* dev_tw_matrix = nullptr;
+    void* dev_radix_list = nullptr;
+    void* dev_workspace = nullptr;
+    void* dev_tiling = nullptr;
 
     CHECK_ACL(aclrtMalloc(&dev_input, inputSize, ACL_MEM_MALLOC_HUGE_FIRST));
     CHECK_ACL(aclrtMalloc(&dev_output, outputSize, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -192,26 +206,23 @@ extern "C" aclError aclfftFft1DC2C(float *x, float *y, uint32_t n, int32_t norm,
     std::unique_ptr<void, AclrtFreeDeleter> d_tiling_guard(dev_tiling);
 
     CHECK_ACL(aclrtMemcpy(dev_input, inputSize, x, inputSize, ACL_MEMCPY_HOST_TO_DEVICE));
-    CHECK_ACL(aclrtMemcpy(dev_dft_matrix, dftMatrixSize, allDftMatrices.data(), dftMatrixSize, ACL_MEMCPY_HOST_TO_DEVICE));
+    CHECK_ACL(
+        aclrtMemcpy(dev_dft_matrix, dftMatrixSize, allDftMatrices.data(), dftMatrixSize, ACL_MEMCPY_HOST_TO_DEVICE));
     CHECK_ACL(aclrtMemcpy(dev_tw_matrix, twSize, allTwiddleFactors.data(), twSize, ACL_MEMCPY_HOST_TO_DEVICE));
 
     std::vector<float> radixListHost(tilingData.radixListLen);
     for (int32_t s = 0; s < tilingData.radixListLen; s++) {
         radixListHost[s] = static_cast<float>(tilingData.radix_arr[s]);
     }
-    CHECK_ACL(aclrtMemcpy(dev_radix_list, radixListSize, radixListHost.data(), radixListSize, ACL_MEMCPY_HOST_TO_DEVICE));
+    CHECK_ACL(
+        aclrtMemcpy(dev_radix_list, radixListSize, radixListHost.data(), radixListSize, ACL_MEMCPY_HOST_TO_DEVICE));
 
     CHECK_ACL(aclrtMemcpy(dev_tiling, tilingSize, &tilingData, tilingSize, ACL_MEMCPY_HOST_TO_DEVICE));
 
     fft_c2c_arch35_multi_core<<<coreNum, nullptr, stream>>>(
-        (__gm__ float *)dev_input,
-        (__gm__ float *)dev_dft_matrix,
-        (__gm__ float *)dev_tw_matrix,
-        (__gm__ float *)dev_radix_list,
-        (__gm__ float *)dev_output,
-        (__gm__ float *)dev_workspace,
-        (__gm__ uint8_t *)dev_tiling
-    );
+        (__gm__ float*)dev_input, (__gm__ float*)dev_dft_matrix, (__gm__ float*)dev_tw_matrix,
+        (__gm__ float*)dev_radix_list, (__gm__ float*)dev_output, (__gm__ float*)dev_workspace,
+        (__gm__ uint8_t*)dev_tiling);
 
     CHECK_ACL(aclrtSynchronizeStream(stream));
 

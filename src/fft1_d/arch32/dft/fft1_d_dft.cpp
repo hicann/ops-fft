@@ -41,8 +41,8 @@ static std::vector<float> InitRotationMatrix(int64_t nDoing)
     return rotationMatrixHost;
 }
 
-static int SetTilingData(Fft1DDFTTilingData &tiling, uint32_t fftN, int32_t norm,
-                         int isInverse, uint32_t coreNum, uint32_t batches)
+static int SetTilingData(
+    Fft1DDFTTilingData& tiling, uint32_t fftN, int32_t norm, int isInverse, uint32_t coreNum, uint32_t batches)
 {
     const int thresholdK = 32768;
     const int cubeDataCountPerLoopSmall = 128;
@@ -55,7 +55,7 @@ static int SetTilingData(Fft1DDFTTilingData &tiling, uint32_t fftN, int32_t norm
     tiling.transA = 0;
     tiling.transB = 0;
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
-    if (ascendcPlatform -> GetSocVersion() == platform_ascendc::SocVersion::ASCEND910B) {
+    if (ascendcPlatform->GetSocVersion() == platform_ascendc::SocVersion::ASCEND910B) {
         if (static_cast<bool>(isInverse)) {
             tiling.transB = 1;
         }
@@ -71,12 +71,18 @@ static int SetTilingData(Fft1DDFTTilingData &tiling, uint32_t fftN, int32_t norm
     return ACL_SUCCESS;
 }
 
-extern "C" aclError aclfftFft1DDft(float *x, float *y, uint32_t n, int32_t norm,
-                                uint32_t batches, int isForward, void *stream)
+extern "C" aclError aclfftFft1DDft(
+    float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, int isForward, void* stream)
 {
     // 防护: 本函数经 ACLFFT_API 导出可被外部直接调用，需校验输入输出指针（issue #76）
     if (x == nullptr || y == nullptr) {
         std::cerr << "[ops-fft] aclfftFft1DDft: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
+    // 当前版本仅支持 norm=0（BACKWARD，无缩放）；norm!=0 显式报错而非静默忽略（issue #90）
+    if (norm != 0) {
+        std::cerr << "[ops-fft] aclfftFft1DDft: norm=" << norm << " is not supported (only 0=BACKWARD in this version)"
+                  << std::endl;
         return ACL_ERROR_INVALID_PARAM;
     }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
@@ -84,14 +90,16 @@ extern "C" aclError aclfftFft1DDft(float *x, float *y, uint32_t n, int32_t norm,
     auto matrix = InitRotationMatrix(n);
     uint32_t sysWorkspaceSize = ascendcPlatform->GetLibApiWorkSpaceSize();
 
-    const uint32_t inputSize = n * batches * sizeof(float) * 2;
-    const uint32_t matrixSize = matrix.size() * sizeof(float);
-    const uint32_t outputSize = inputSize;
+    // 用 size_t 计算，避免 n*batches*8 在 uint32_t 域溢出回绕（大 batch 4GiB 场景，
+    // 与 #74/#77 对 fft1_d_c2c.cpp 等的修复同款）（issue #87）
+    const size_t inputSize = static_cast<size_t>(n) * batches * sizeof(float) * 2;
+    const size_t matrixSize = matrix.size() * sizeof(float);
+    const size_t outputSize = inputSize;
 
-    void *dev_a = nullptr;
-    void *dev_b = nullptr;
-    void *dev_c = nullptr;
-    void *workspace_ptr = nullptr;
+    void* dev_a = nullptr;
+    void* dev_b = nullptr;
+    void* dev_c = nullptr;
+    void* workspace_ptr = nullptr;
 
     // Allocate device memory for inputs and output
     CHECK_ACL(aclrtMalloc(&dev_a, inputSize, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -111,13 +119,13 @@ extern "C" aclError aclfftFft1DDft(float *x, float *y, uint32_t n, int32_t norm,
     Fft1DDFTTilingData tilingData;
 
     // set tiling data
-    int isInverse = 1 - isForward;   // 正向传播则不需要inverse
+    int isInverse = 1 - isForward; // 正向传播则不需要inverse
     aclError ret = SetTilingData(tilingData, n, norm, isInverse, coreNum, batches);
 
     // Call host-side launcher (must be implemented to actually launch kernel)
 
-    dft<<<coreNum, nullptr, stream>>>((__gm__ float *)dev_a, (__gm__ float *)dev_b, (__gm__ float *)dev_c, 
-                                      (__gm__ uint8_t *)workspace_ptr, tilingData);
+    dft<<<coreNum, nullptr, stream>>>(
+        (__gm__ float*)dev_a, (__gm__ float*)dev_b, (__gm__ float*)dev_c, (__gm__ uint8_t*)workspace_ptr, tilingData);
 
     CHECK_ACL(aclrtSynchronizeStream(stream));
 

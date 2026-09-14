@@ -30,7 +30,9 @@ using namespace matmul;
 
 constexpr uint32_t BLOCK_LEN_FP32 = 8;
 constexpr uint32_t MAX_VEC_ELEMS_PER_REP = 64;
-constexpr uint32_t CORE_IDX_DIV = 2;
+// 工作索引分母：原值 2 导致仅一半 block 参与批次计算，batches 超过核数一半时尾部批次
+// 输出为未初始化内存；改回 1 恢复全部 block 参与（issue #98，需 950 环境回归验证）
+constexpr uint32_t CORE_IDX_DIV = 1;
 constexpr uint32_t MAX_FACTORS_LEN = 3;
 constexpr uint32_t RFFT_HALF = 2;
 constexpr uint32_t COMPLEX = 2;
@@ -75,9 +77,10 @@ public:
     uint32_t batchesPerCoreCeil;
 
 public:
+    // 构造参数 factors 已删除：原参数接收后从未存储、从未使用（issue #99）
     __aicore__ inline KernelRfftFastDFT(
         const uint32_t& length, const uint32_t& batchesPerCore, const uint32_t& leftOverBatches, const uint32_t& norm,
-        const uint32_t& dftOverallSize, uint32_t factors[MAX_FACTORS_LEN])
+        const uint32_t& dftOverallSize)
         : fftLength(length),
           batchesPerCore(batchesPerCore),
           leftOverBatches(leftOverBatches),

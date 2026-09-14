@@ -12,10 +12,8 @@
 #include "fft_exec_helper.h"
 
 extern "C" {
-aclfftResult aclfftExecC2C_1D(aclfftHandle plan,
-                           aclfftComplex* idata,
-                           aclfftComplex* odata,
-                           int direction) {
+aclfftResult aclfftExecC2C_1D(aclfftHandle plan, aclfftComplex* idata, aclfftComplex* odata, int direction)
+{
     aclfftHandle_t* impl = plan;
     // 防护: 本函数为 weak 符号可被外部直接调用，plan/idata/odata 可能为 NULL（issue #73）
     ACLFFT_CHECK_PARAM(impl != nullptr && idata != nullptr && odata != nullptr, ACLFFT_INVALID_VALUE);
@@ -23,7 +21,8 @@ aclfftResult aclfftExecC2C_1D(aclfftHandle plan,
 
     const uint32_t n = impl->lengths[0];
     const uint32_t batch = impl->batch;
-    int32_t fft_norm = impl->normMode + 1;
+    // norm 值域与 fft1_d.h 文档对齐（0=BACKWARD），normMode 直传（issue #90）
+    int32_t fft_norm = impl->normMode;
     int isForward = direction == ACLFFT_FORWARD ? 1 : 0;
     aclError err;
 
@@ -42,23 +41,29 @@ aclfftResult aclfftExecC2C_1D(aclfftHandle plan,
         }
         int radix = ChooseRadix(impl->type, uniques);
         if (n > 1 && radix == K_RADIX_2) {
-            err = aclfftFft1DC2C(reinterpret_cast<float*>(idata),
-                                 reinterpret_cast<float*>(odata),
-                                 n, fft_norm, batch, isForward, impl->stream);
+            err = aclfftFft1DC2C(
+                reinterpret_cast<float*>(idata), reinterpret_cast<float*>(odata), n, fft_norm, batch, isForward,
+                impl->stream);
         } else if (n > 1 && radix == K_RADIX_MIX) {
-            err = aclfftFft1DC2CMix(reinterpret_cast<float*>(idata),
-                                    reinterpret_cast<float*>(odata),
-                                    n, fft_norm, batch, isForward, impl->stream);
+            err = aclfftFft1DC2CMix(
+                reinterpret_cast<float*>(idata), reinterpret_cast<float*>(odata), n, fft_norm, batch, isForward,
+                impl->stream);
         } else {
             std::cerr << "[ops-fft] C2C arch35: n=" << n << " radix=" << radix << " not implemented" << std::endl;
             return ACLFFT_NOT_IMPLEMENTED;
         }
     } else {
-        std::cerr << "  [ERROR] Unsupported SoC: " << SocVersionToString(socVersion)
-                  << ", expected Ascend950" << std::endl;
+        std::cerr << "  [ERROR] Unsupported SoC: " << SocVersionToString(socVersion) << ", expected Ascend950"
+                  << std::endl;
         err = ACLFFT_EXEC_FAILED;
     }
 
-    return (err == ACL_SUCCESS) ? ACLFFT_SUCCESS : ACLFFT_EXEC_FAILED;
+    // 质因子不支持（内层返回 ACL_ERROR_INVALID_PARAM）翻译为文档承诺的 NOT_IMPLEMENTED，
+    // 其余运行期失败仍为 EXEC_FAILED（issue #97）
+    if (err == ACL_SUCCESS)
+        return ACLFFT_SUCCESS;
+    if (err == ACL_ERROR_INVALID_PARAM)
+        return ACLFFT_NOT_IMPLEMENTED;
+    return ACLFFT_EXEC_FAILED;
 }
 } // extern "C"

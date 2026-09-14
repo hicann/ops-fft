@@ -21,9 +21,9 @@
 
 /* 导出宏定义 */
 #if defined(_WIN32) || defined(__CYGWIN__)
-    #define ACLFFT_API __declspec(dllexport)
+#define ACLFFT_API __declspec(dllexport)
 #else
-    #define ACLFFT_API __attribute__((visibility("default")))
+#define ACLFFT_API __attribute__((visibility("default")))
 #endif
 
 #ifdef __cplusplus
@@ -36,21 +36,23 @@ extern "C" {
  * @param x 输入实数数组
  * @param y 输出复数数组（实部和虚部交错存储）
  * @param n FFT 长度
- * @param norm 归一化模式（0=BACKWARD, 1=ORTHO, 2=FORWARD）
+ * @param norm 归一化模式（0=BACKWARD, 1=ORTHO, 2=FORWARD）。
+ *             注意：当前版本仅 aclfftRfft1D（FastDFT）支持完整 norm 语义；
+ *             aclfftRfft1DFft/aclfftRfft1DDft 仅支持 0=BACKWARD，传非 0 值返回
+ *             ACL_ERROR_INVALID_PARAM（issue #89）。
  * @param batches 批次数
  * @param stream ACL 流
  * @return ACL 错误码
  */
-ACLFFT_API aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, uint32_t batches, void *stream);
+ACLFFT_API aclError aclfftRfft1D(float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, void* stream);
 
-ACLFFT_API aclError aclfftRfft1DR2CFft(float *x, float *y, uint32_t n,
-                                         uint32_t batches, int isForward, void *stream);
+ACLFFT_API aclError aclfftRfft1DR2CFft(float* x, float* y, uint32_t n, uint32_t batches, int isForward, void* stream);
 
-ACLFFT_API aclError aclfftRfft1DFft(float *x, float *y, uint32_t n, int32_t norm,
-                                     uint32_t batches, int isForward, void *stream);
+ACLFFT_API aclError
+aclfftRfft1DFft(float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, int isForward, void* stream);
 
-ACLFFT_API aclError aclfftRfft1DDft(float *x, float *y, uint32_t n, int32_t norm,
-                                     uint32_t batches, int isForward, void *stream);
+ACLFFT_API aclError
+aclfftRfft1DDft(float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, int isForward, void* stream);
 
 #ifdef __cplusplus
 }

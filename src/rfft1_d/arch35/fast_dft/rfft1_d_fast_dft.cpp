@@ -41,54 +41,28 @@ static const uint32_t RFFT_SYMMETRY_DIVISOR = 2;
 static const uint32_t BACKWARD = 0;
 static const uint32_t FORWARD = 2;
 
-#define CHECK_ACL(call)                                              \
-    do {                                                             \
-        aclError err = (call);                                       \
-        if (err != ACL_SUCCESS) {                                    \
-            std::cerr << "ACL error: " << err << " at " << __FILE__ \
-                    << ":" << __LINE__ << std::endl;              \
-            return 1;                                                \
-        }                                                            \
+// ACL 错误检查宏：失败时返回真实 aclError 而非魔数 1（issue #93，与 fft_common_core.h 同款）
+#define CHECK_ACL(call)                                                                              \
+    do {                                                                                             \
+        aclError err = (call);                                                                       \
+        if (err != ACL_SUCCESS) {                                                                    \
+            std::cerr << "ACL error: " << err << " at " << __FILE__ << ":" << __LINE__ << std::endl; \
+            return err;                                                                              \
+        }                                                                                            \
     } while (0)
 
 struct AclrtFreeDeleter {
-    void operator()(void* ptr) const {
+    void operator()(void* ptr) const
+    {
         if (ptr != nullptr) {
             aclrtFree(ptr);
         }
     }
 };
 
-static void CalcColleyTukeyFactors(uint32_t factors[], std::vector<uint32_t> availableFactors, const uint32_t n)
-{
-    std::vector<uint32_t> factorsTmp;
-    int curFactorIndex = availableFactors.size() - 1;
-    uint32_t tmpN = n;
-
-    if (tmpN == LAST_FACTOR * LAST_FACTOR * LAST_FACTOR * COMPLEX_PART) {
-        for (size_t i = 0; i < MAX_FACTORS_LEN; i++) {
-            factors[i] = LAST_FACTOR;
-        }
-        factors[0] = LAST_FACTOR * COMPLEX_PART;
-    } else if (tmpN > DFT_BORDER_VALUE) {
-        while (curFactorIndex >= 0) {
-            uint32_t curFactor = availableFactors[curFactorIndex];
-
-            while (tmpN % curFactor == 0) {
-                tmpN /= curFactor;
-                factorsTmp.emplace_back(curFactor);
-            }
-            curFactorIndex -= 1;
-        }
-
-        while (factorsTmp.size() < MAX_FACTORS_LEN) {
-            factorsTmp.emplace_back(1);
-        }
-        for (size_t i = 0; i < MAX_FACTORS_LEN; i++) {
-            factors[i] = factorsTmp[i];
-        }
-    }
-}
+// CalcColleyTukeyFactors 已删除：其仅在 n==524288 或 n>4096 时写入 factors，而入口
+// 拒绝 n>4096（DFT_BORDER_VALUE），两个分支均不可达，在全部可达输入下为纯空操作
+// （issue #99）；factors 由调用方初始化为 {1,1,1} 后直接进入 Bluestein 计算
 
 static void CalcBluesteinFactors(uint32_t factors[], std::vector<uint32_t> availableFactors, const uint32_t pow2)
 {
@@ -121,7 +95,7 @@ static void CalcBluesteinFactors(uint32_t factors[], std::vector<uint32_t> avail
     }
 }
 
-static void CalcDftSizes(Rfft1DTilingData &tiling, const uint32_t factors[], const bool isBluestein, const uint32_t n)
+static void CalcDftSizes(Rfft1DTilingData& tiling, const uint32_t factors[], const bool isBluestein, const uint32_t n)
 {
     uint32_t dftRealOverallSize = 0;
     uint32_t dftImagOverallSize = 0;
@@ -172,7 +146,7 @@ static void CalcDftSizes(Rfft1DTilingData &tiling, const uint32_t factors[], con
     }
 }
 
-static int SetTilingData(Rfft1DTilingData &tiling, uint32_t n, int32_t norm, uint32_t coreNum, uint32_t batches)
+static int SetTilingData(Rfft1DTilingData& tiling, uint32_t n, int32_t norm, uint32_t coreNum, uint32_t batches)
 {
     uint32_t factors[MAX_FACTORS_LEN] = {1, 1, 1};
     uint32_t prevRadices[MAX_FACTORS_LEN] = {1, 1, 1};
@@ -181,8 +155,6 @@ static int SetTilingData(Rfft1DTilingData &tiling, uint32_t n, int32_t norm, uin
 
     std::vector<uint32_t> availableFactors(LAST_FACTOR - 1);
     std::iota(availableFactors.begin(), availableFactors.end(), COMPLEX_PART);
-
-    CalcColleyTukeyFactors(factors, availableFactors, n);
 
     const bool isBluestein = (n % LAST_FACTOR != 0) || (factors[0] * factors[1] * factors[2] != n);
     const uint32_t pow2 = COMPLEX_PART * uint32_t(std::pow(2, std::ceil(std::log2(double(n)))));
@@ -202,7 +174,8 @@ static int SetTilingData(Rfft1DTilingData &tiling, uint32_t n, int32_t norm, uin
         return src != 0 ? src + (blockLen - src % (blockLen ? blockLen : 1)) % (blockLen ? blockLen : 1) : blockLen;
     };
 
-    const uint32_t tailSize = COMPLEX_PART * (((n / RFFT_SYMMETRY_DIVISOR) + 1) - (factors[2] / COMPLEX_PART) * (n / factors[2]));
+    const uint32_t tailSize =
+        COMPLEX_PART * (((n / RFFT_SYMMETRY_DIVISOR) + 1) - (factors[2] / COMPLEX_PART) * (n / factors[2]));
     const uint32_t tmpLenPerBatch = 3 * roundUpBlock(
                                             COMPLEX_PART * (isBluestein ? lengthPad : n) + factors[2] * tailSize + 1,
                                             BYTES_ALIGN * SIZE_PER_BATCH_MULTIPLIER);
@@ -286,14 +259,13 @@ static std::vector<float> Rfft1DDftGen(int64_t fftLength, int64_t norm)
     }
 }
 
-extern "C" __global__ __aicore__ void rfft1_d_fast_dft(GM_ADDR x, GM_ADDR dft, GM_ADDR y, GM_ADDR workspace, Rfft1DTilingData tilingData)
+extern "C" __global__ __aicore__ void rfft1_d_fast_dft(
+    GM_ADDR x, GM_ADDR dft, GM_ADDR y, GM_ADDR workspace, Rfft1DTilingData tilingData)
 {
-    if (tilingData.length <= DFT_BORDER_VALUE)
-    {
-        uint32_t* factorsP = const_cast<uint32_t*>(tilingData.factors);
-
-        KernelRfftFastDFT op(tilingData.length, tilingData.batchesPerCore, tilingData.leftOverBatches, 
-                            tilingData.normal, tilingData.dftRealOverallSize, factorsP);
+    if (tilingData.length <= DFT_BORDER_VALUE) {
+        KernelRfftFastDFT op(
+            tilingData.length, tilingData.batchesPerCore, tilingData.leftOverBatches, tilingData.normal,
+            tilingData.dftRealOverallSize);
 
         uint32_t modeLength = COMPLEX_PART * (tilingData.length / RFFT_SYMMETRY_DIVISOR + 1);
         auto t1 = PrepareTiling((op.batches + op.advancedBatches) / GetBlockNum(), op.modeLength, tilingData.length);
@@ -305,14 +277,15 @@ extern "C" __global__ __aicore__ void rfft1_d_fast_dft(GM_ADDR x, GM_ADDR dft, G
     return;
 }
 
-extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, uint32_t batches, void *stream)
+extern "C" aclError aclfftRfft1D(float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, void* stream)
 {
     if (x == nullptr || y == nullptr) {
         std::cerr << "[ops-fft] aclfftRfft1D: input/output pointer is null" << std::endl;
         return ACL_ERROR_INVALID_PARAM;
     }
     if (n > DFT_BORDER_VALUE) {
-        std::cerr << "[ops-fft] aclfftRfft1D: n=" << n << " exceeds FastDFT limit (" << DFT_BORDER_VALUE << "), not implemented" << std::endl;
+        std::cerr << "[ops-fft] aclfftRfft1D: n=" << n << " exceeds FastDFT limit (" << DFT_BORDER_VALUE
+                  << "), not implemented" << std::endl;
         return ACL_ERROR_INVALID_PARAM;
     }
 
@@ -327,10 +300,10 @@ extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, u
     const size_t dftSize = dft.size() * sizeof(float);
     const size_t outputSize = rfft1_d::OutputSize(n, batches);
 
-    void *dev_x = nullptr;
-    void *dev_dft = nullptr;
-    void *dev_y = nullptr;
-    void *workspace_ptr = nullptr;
+    void* dev_x = nullptr;
+    void* dev_dft = nullptr;
+    void* dev_y = nullptr;
+    void* workspace_ptr = nullptr;
 
     CHECK_ACL(aclrtMalloc(&dev_x, inputSize, ACL_MEM_MALLOC_HUGE_FIRST));
     CHECK_ACL(aclrtMalloc(&dev_dft, dftSize, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -348,7 +321,9 @@ extern "C" aclError aclfftRfft1D(float *x, float *y, uint32_t n, int32_t norm, u
     Rfft1DTilingData tilingData;
     aclError ret = SetTilingData(tilingData, n, norm, coreNum, batches);
 
-    rfft1_d_fast_dft<<<coreNum, nullptr, stream>>>((__gm__ uint8_t *)dev_x, (__gm__ uint8_t *)dev_dft, (__gm__ uint8_t *)dev_y, (__gm__ uint8_t *)workspace_ptr, tilingData);
+    rfft1_d_fast_dft<<<coreNum, nullptr, stream>>>(
+        (__gm__ uint8_t*)dev_x, (__gm__ uint8_t*)dev_dft, (__gm__ uint8_t*)dev_y, (__gm__ uint8_t*)workspace_ptr,
+        tilingData);
 
     CHECK_ACL(aclrtSynchronizeStream(stream));
     CHECK_ACL(aclrtMemcpy(y, outputSize, dev_y, outputSize, ACL_MEMCPY_DEVICE_TO_HOST));

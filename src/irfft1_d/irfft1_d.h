@@ -15,23 +15,27 @@
 #include "acl/acl.h"
 
 #if defined(_WIN32) || defined(__CYGWIN__)
-    #define ACLFFT_API __declspec(dllexport)
+#define ACLFFT_API __declspec(dllexport)
 #else
-    #define ACLFFT_API __attribute__((visibility("default")))
+#define ACLFFT_API __attribute__((visibility("default")))
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-ACLFFT_API aclError aclfftIrfft1DFft(float *x, float *y, uint32_t n, int32_t norm,
-                                      uint32_t batches, int isForward, void *stream);
+/*
+ * norm 归一化模式：当前版本两个带 norm 参数的入口（Irfft1DFft/Irfft1DDft）均仅支持
+ * 0=BACKWARD（无缩放），传非 0 值返回 ACL_ERROR_INVALID_PARAM，后续版本再扩展
+ * ORTHO/FORWARD 语义（issue #91）。
+ */
+ACLFFT_API aclError
+aclfftIrfft1DFft(float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, int isForward, void* stream);
 
-ACLFFT_API aclError aclfftIrfft1DDft(float *x, float *y, uint32_t n, int32_t norm,
-                                      uint32_t batches, int isForward, void *stream);
+ACLFFT_API aclError
+aclfftIrfft1DDft(float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, int isForward, void* stream);
 
-ACLFFT_API aclError aclfftIrfft1DC2RFft(float *x, float *y, uint32_t n,
-                                         uint32_t batches, int isForward, void *stream);
+ACLFFT_API aclError aclfftIrfft1DC2RFft(float* x, float* y, uint32_t n, uint32_t batches, int isForward, void* stream);
 
 #ifdef __cplusplus
 }

@@ -42,7 +42,7 @@ constexpr int LOGN_25 = 25;
 constexpr int LOGN_26 = 26;
 constexpr int LOGN_27 = 27;
 
-static void InitRadix(uint32_t n, std::vector<uint32_t> &radixVec)
+static void InitRadix(uint32_t n, std::vector<uint32_t>& radixVec)
 {
     int64_t minRadix = 8;
     int64_t maxRadix = 64;
@@ -96,9 +96,9 @@ static void InitRadix(uint32_t n, std::vector<uint32_t> &radixVec)
         radixVec = {64, 64, 16, 32, 64};
     }
 }
-static void InitTilingArgs(uint32_t n, uint32_t iterCount, std::vector<uint32_t> &aicInputAddr,
-                           std::vector<uint32_t> &aivOutputAddr, std::vector<uint32_t> &lessTCopy,
-                           std::vector<uint32_t> &syncTilingNum)
+static void InitTilingArgs(
+    uint32_t n, uint32_t iterCount, std::vector<uint32_t>& aicInputAddr, std::vector<uint32_t>& aivOutputAddr,
+    std::vector<uint32_t>& lessTCopy, std::vector<uint32_t>& syncTilingNum)
 {
     if (iterCount == RADIXVEC_SIZE_THREE) {
         aicInputAddr = {1, 1, 0};
@@ -127,16 +127,16 @@ static void InitTilingArgs(uint32_t n, uint32_t iterCount, std::vector<uint32_t>
         lessTCopy = {0, 1, 1, 1, 1};
     }
 }
-static void ComputeRepeatBatchSize(uint32_t n, uint32_t batch, int32_t &repeatBatchSize)
+static void ComputeRepeatBatchSize(uint32_t n, uint32_t batch, int32_t& repeatBatchSize)
 {
     float batchDataSize = float(n) * 2 * 4 / 1024 / 1024;
     float l2CacheSize = 92.0f;
     repeatBatchSize = static_cast<int32_t>(floor((l2CacheSize - 10 - 2) / 2 / batchDataSize));
     repeatBatchSize = repeatBatchSize < 1 ? static_cast<int32_t>(batch) : repeatBatchSize;
 }
-static void SetFft1DNTilingData(Fft1DNTilingData &tiling, uint32_t fftN, uint32_t batchSize,
-                                int32_t repeatBatchSize, const std::vector<uint32_t> &radixVec,
-                                int isForward, uint32_t coreNum)
+static void SetFft1DNTilingData(
+    Fft1DNTilingData& tiling, uint32_t fftN, uint32_t batchSize, int32_t repeatBatchSize,
+    const std::vector<uint32_t>& radixVec, int isForward, uint32_t coreNum)
 {
     (void)coreNum;
     tiling.nFFT = fftN;
@@ -163,7 +163,7 @@ static std::vector<float> InitWMatrixRadix2(uint32_t radix, bool forward, bool i
     int32_t size = 2 * radix * 2 * radix;
     std::vector<float> matrix(size, 0.f);
     double K_2PI = 2.0 * 3.14159265358979323846;
-    
+
     if (isLastIter) {
         // Last iteration (radixVec.size() > 1 && it == radixVec.size() - 1)
         // Layout: row i and row i+radix
@@ -171,8 +171,10 @@ static std::vector<float> InitWMatrixRadix2(uint32_t radix, bool forward, bool i
             int64_t i = k / (radix ? radix : 1);
             int64_t j = k % (radix ? radix : 1);
             matrix[i * 2 * radix + j] = cos(-1.0 * K_2PI / (radix ? radix : 1) * i * j);
-            matrix[i * 2 * radix + radix + j] = sin(-1.0 * K_2PI / (radix ? radix : 1) * i * j) * (forward ? (-1.0) : (1.0));
-            matrix[(i + radix) * 2 * radix + j] = sin(1.0 * K_2PI / (radix ? radix : 1) * i * j) * (forward ? (-1.0) : (1.0));
+            matrix[i * 2 * radix + radix + j] =
+                sin(-1.0 * K_2PI / (radix ? radix : 1) * i * j) * (forward ? (-1.0) : (1.0));
+            matrix[(i + radix) * 2 * radix + j] =
+                sin(1.0 * K_2PI / (radix ? radix : 1) * i * j) * (forward ? (-1.0) : (1.0));
             matrix[(i + radix) * 2 * radix + radix + j] = cos(-1.0 * K_2PI / (radix ? radix : 1) * i * j);
         }
     } else {
@@ -182,32 +184,35 @@ static std::vector<float> InitWMatrixRadix2(uint32_t radix, bool forward, bool i
             int64_t i = k / (radix ? radix : 1);
             int64_t j = k % (radix ? radix : 1);
             matrix[2 * i * 2 * radix + j] = cos(-1.0 * K_2PI / (radix ? radix : 1) * i * j);
-            matrix[2 * i * 2 * radix + radix + j] = sin(-1.0 * K_2PI / (radix ? radix : 1) * i * j) * (forward ? (-1.0) : (1.0));
-            matrix[(2 * i + 1) * 2 * radix + j] = sin(1.0 * K_2PI / (radix ? radix : 1) * i * j) * (forward ? (-1.0) : (1.0));
+            matrix[2 * i * 2 * radix + radix + j] =
+                sin(-1.0 * K_2PI / (radix ? radix : 1) * i * j) * (forward ? (-1.0) : (1.0));
+            matrix[(2 * i + 1) * 2 * radix + j] =
+                sin(1.0 * K_2PI / (radix ? radix : 1) * i * j) * (forward ? (-1.0) : (1.0));
             matrix[(2 * i + 1) * 2 * radix + radix + j] = cos(-1.0 * K_2PI / (radix ? radix : 1) * i * j);
         }
     }
     return matrix;
 }
-static std::vector<float> InitTMatrix(uint32_t fftN, const std::vector<uint32_t>& radixVec, uint32_t iterIndex, bool forward)
+static std::vector<float> InitTMatrix(
+    uint32_t fftN, const std::vector<uint32_t>& radixVec, uint32_t iterIndex, bool forward)
 {
     // InitTMatrixCommon logic
     // T matrix only for iterations 0 to size-1 (exclude last iteration)
     double K_2PI = 2.0 * 3.14159265358979323846;
-    
+
     uint32_t tempRow = radixVec[iterIndex] * 2;
     uint32_t tempCol = 1;
     for (uint32_t j = iterIndex + 1; j < radixVec.size(); j++) {
         tempCol *= radixVec[j];
     }
-    
-    uint32_t size = tempRow * tempCol;  // Note: uses tempRow*tempCol not tempRow*tempCol*2
+
+    uint32_t size = tempRow * tempCol; // Note: uses tempRow*tempCol not tempRow*tempCol*2
     std::vector<float> matrix(size, 0.f);
-    
+
     // Formula: angle = -2*pi/(tempRow/2 * tempCol) * i * j
     // Note: tempRow/2 = radixVec[iterIndex]
     double angle_base = -1.0 * K_2PI / (tempRow / 2 * tempCol);
-    
+
     for (uint32_t i = 0; i < tempRow / 2; ++i) {
         for (uint32_t j = 0; j < tempCol; ++j) {
             // Layout: [2*i*tempCol + j] for real, [(2*i+1)*tempCol + j] for imag
@@ -222,7 +227,7 @@ static std::vector<int32_t> InitIndexTable(uint32_t fftN, const std::vector<uint
 {
     // index generation in FFTCoreN::InitInDevice()
     uint32_t iterCount = radixVec.size();
-    
+
     // tN calculation
     int64_t tN = 1;
     constexpr int64_t CALCUL_TWO = 2;
@@ -233,14 +238,14 @@ static std::vector<int32_t> InitIndexTable(uint32_t fftN, const std::vector<uint
     } else {
         tN = radixVec[0];
     }
-    
+
     int64_t tM = 2 * radixVec.back();
     int64_t N0 = (tM < 128) ? 256 : 128;
     tN = (tN < N0) ? tN : N0;
-    
+
     int64_t tilingNum = (tM / 2) * tN;
     std::vector<int32_t> index(tilingNum);
-    
+
     // Index pattern
     for (int64_t i = 0; i < tilingNum / 2; i++) {
         index[2 * i] = i * 4;
@@ -250,11 +255,18 @@ static std::vector<int32_t> InitIndexTable(uint32_t fftN, const std::vector<uint
 }
 
 constexpr int32_t SCRATCH_SIZES = sizeof(float) * 128 * 512 * 20;
-extern "C" aclError aclfftFft1DN(float *x, float *y, uint32_t n, int32_t norm,
-                                uint32_t batches, int isForward, void *stream) {
+extern "C" aclError aclfftFft1DN(
+    float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, int isForward, void* stream)
+{
     // 防护: 本函数经 ACLFFT_API 导出可被外部直接调用，需校验输入输出指针（issue #76）
     if (x == nullptr || y == nullptr) {
         std::cerr << "[ops-fft] aclfftFft1DN: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
+    // 当前版本仅支持 norm=0（BACKWARD，无缩放）；norm!=0 显式报错而非静默忽略（issue #90）
+    if (norm != 0) {
+        std::cerr << "[ops-fft] aclfftFft1DN: norm=" << norm << " is not supported (only 0=BACKWARD in this version)"
+                  << std::endl;
         return ACL_ERROR_INVALID_PARAM;
     }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
@@ -262,12 +274,15 @@ extern "C" aclError aclfftFft1DN(float *x, float *y, uint32_t n, int32_t norm,
     if (coreNum == 0) {
         coreNum = 1;
     }
-    std::vector<uint32_t> radixVec;
-    InitRadix(n, radixVec);
-    if (radixVec.empty()) {
+    // InitRadix 对任意 n 都会生成分解表（radixVec 恒非空），原 empty() 检查为不可达死代码；
+    // 非 2 的幂的 n 会得到乘积不等于 n 的错误分解并被静默计算（issue #94），
+    // 在此以真正的 2 的幂校验拦截
+    if (n == 0 || (n & (n - 1)) != 0) {
         std::cerr << "fft_n: n must be power of 2, got " << n << std::endl;
         return ACL_ERROR_INVALID_PARAM;
     }
+    std::vector<uint32_t> radixVec;
+    InitRadix(n, radixVec);
     int32_t repeatBatchSize = 0;
     ComputeRepeatBatchSize(n, batches, repeatBatchSize);
     const size_t inputSize = static_cast<size_t>(n) * batches * sizeof(float) * 2;
@@ -275,7 +290,7 @@ extern "C" aclError aclfftFft1DN(float *x, float *y, uint32_t n, int32_t norm,
     std::vector<float> wMatrixHost;
     for (size_t i = 0; i < radixVec.size(); i++) {
         uint32_t radix = radixVec[i];
-        uint32_t stageSize = 2 * radix * 2 * radix;  // size
+        uint32_t stageSize = 2 * radix * 2 * radix; // size
         size_t wBias = wMatrixHost.size();
         wMatrixHost.resize(wBias + stageSize);
         bool isLastIter = (i == radixVec.size() - 1);
@@ -296,13 +311,13 @@ extern "C" aclError aclfftFft1DN(float *x, float *y, uint32_t n, int32_t norm,
     const uint32_t indexSize = indexHost.size() * sizeof(int32_t);
     uint32_t totalWorkspaceSize = SCRATCH_SIZES * coreNum;
 
-    void *dev_input = nullptr;
-    void *dev_output = nullptr;
-    void *dev_wMatrix = nullptr;
-    void *dev_tMatrix = nullptr;
-    void *dev_index = nullptr;
-    void *dev_workspace = nullptr;
-    void *dev_tiling = nullptr;
+    void* dev_input = nullptr;
+    void* dev_output = nullptr;
+    void* dev_wMatrix = nullptr;
+    void* dev_tMatrix = nullptr;
+    void* dev_index = nullptr;
+    void* dev_workspace = nullptr;
+    void* dev_tiling = nullptr;
     CHECK_ACL(aclrtMalloc(&dev_input, inputSize, ACL_MEM_MALLOC_HUGE_FIRST));
     CHECK_ACL(aclrtMalloc(&dev_output, outputSize, ACL_MEM_MALLOC_HUGE_FIRST));
     CHECK_ACL(aclrtMalloc(&dev_wMatrix, wMatrixSize, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -324,19 +339,14 @@ extern "C" aclError aclfftFft1DN(float *x, float *y, uint32_t n, int32_t norm,
 
     Fft1DNTilingData tilingData;
     SetFft1DNTilingData(tilingData, n, batches, repeatBatchSize, radixVec, isForward, coreNum);
-    CHECK_ACL(aclrtMemcpy(dev_tiling, sizeof(Fft1DNTilingData), &tilingData, sizeof(Fft1DNTilingData), ACL_MEMCPY_HOST_TO_DEVICE));
-    uint8_t *sync = nullptr;
-    CHECK_ACL(aclrtGetHardwareSyncAddr((void **)&sync));
+    CHECK_ACL(aclrtMemcpy(
+        dev_tiling, sizeof(Fft1DNTilingData), &tilingData, sizeof(Fft1DNTilingData), ACL_MEMCPY_HOST_TO_DEVICE));
+    uint8_t* sync = nullptr;
+    CHECK_ACL(aclrtGetHardwareSyncAddr((void**)&sync));
     FFT1DNKernel::fft_n<<<coreNum, nullptr, stream>>>(
-        (__gm__ uint8_t *)sync,
-        (__gm__ float *)dev_input,
-        (__gm__ float *)dev_wMatrix,
-        (__gm__ float *)dev_tMatrix,
-        (__gm__ int32_t *)dev_index,
-        (__gm__ float *)dev_output,
-        (__gm__ float *)dev_workspace,
-        (__gm__ uint8_t *)dev_tiling
-    );
+        (__gm__ uint8_t*)sync, (__gm__ float*)dev_input, (__gm__ float*)dev_wMatrix, (__gm__ float*)dev_tMatrix,
+        (__gm__ int32_t*)dev_index, (__gm__ float*)dev_output, (__gm__ float*)dev_workspace,
+        (__gm__ uint8_t*)dev_tiling);
     CHECK_ACL(aclrtSynchronizeStream(stream));
     CHECK_ACL(aclrtMemcpy(y, outputSize, dev_output, outputSize, ACL_MEMCPY_DEVICE_TO_HOST));
     return ACL_SUCCESS;

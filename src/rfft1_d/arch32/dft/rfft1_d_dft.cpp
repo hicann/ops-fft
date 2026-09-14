@@ -36,11 +36,17 @@ static std::vector<float> GenerateDftMatrixR2C(int64_t fftN)
     return dftMatrix;
 }
 
-extern "C" aclError aclfftRfft1DDft(float *x, float *y, uint32_t n, int32_t norm,
-                                     uint32_t batches, int isForward, void *stream)
+extern "C" aclError aclfftRfft1DDft(
+    float* x, float* y, uint32_t n, int32_t norm, uint32_t batches, int isForward, void* stream)
 {
     if (x == nullptr || y == nullptr) {
         std::cerr << "[ops-fft] aclfftRfft1DDft: input/output pointer is null" << std::endl;
+        return ACL_ERROR_INVALID_PARAM;
+    }
+    // 当前版本仅支持 norm=0（BACKWARD，无缩放）；norm!=0 显式报错而非静默忽略（issue #89）
+    if (norm != 0) {
+        std::cerr << "[ops-fft] aclfftRfft1DDft: norm=" << norm << " is not supported (only 0=BACKWARD in this version)"
+                  << std::endl;
         return ACL_ERROR_INVALID_PARAM;
     }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
@@ -79,11 +85,11 @@ extern "C" aclError aclfftRfft1DDft(float *x, float *y, uint32_t n, int32_t norm
     size_t sysWorkspaceSize = static_cast<size_t>(ascendcPlatform->GetLibApiWorkSpaceSize());
     size_t tilingSize = sizeof(Rfft1DDftTilingData);
 
-    void *dev_input = nullptr;
-    void *dev_dft = nullptr;
-    void *dev_output = nullptr;
-    void *dev_workspace = nullptr;
-    void *dev_tiling = nullptr;
+    void* dev_input = nullptr;
+    void* dev_dft = nullptr;
+    void* dev_output = nullptr;
+    void* dev_workspace = nullptr;
+    void* dev_tiling = nullptr;
 
     CHECK_ACL(aclrtMalloc(&dev_input, inputSize, ACL_MEM_MALLOC_HUGE_FIRST));
     CHECK_ACL(aclrtMalloc(&dev_dft, dftMatrixSize, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -102,12 +108,8 @@ extern "C" aclError aclfftRfft1DDft(float *x, float *y, uint32_t n, int32_t norm
     CHECK_ACL(aclrtMemcpy(dev_tiling, tilingSize, &tilingData, tilingSize, ACL_MEMCPY_HOST_TO_DEVICE));
 
     Rfft1DDftKernel::dft_r2c<<<coreNum, nullptr, stream>>>(
-        (__gm__ float *)dev_input,
-        (__gm__ float *)dev_dft,
-        (__gm__ float *)dev_output,
-        (__gm__ uint8_t *)dev_workspace,
-        (__gm__ uint8_t *)dev_tiling
-    );
+        (__gm__ float*)dev_input, (__gm__ float*)dev_dft, (__gm__ float*)dev_output, (__gm__ uint8_t*)dev_workspace,
+        (__gm__ uint8_t*)dev_tiling);
 
     CHECK_ACL(aclrtSynchronizeStream(stream));
     CHECK_ACL(aclrtMemcpy(y, outputSize, dev_output, outputSize, ACL_MEMCPY_DEVICE_TO_HOST));
