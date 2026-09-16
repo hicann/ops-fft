@@ -7,8 +7,8 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
-#ifndef INCLUDE_SIMD_H
-#define INCLUDE_SIMD_H
+#ifndef OPSFFT_COMMON_KERNEL_BASE_SIMD_H
+#define OPSFFT_COMMON_KERNEL_BASE_SIMD_H
 
 #include "hardware.h"
 #include "kernel_operator.h"
@@ -388,7 +388,7 @@ __aicore__ inline void ln_v(AscendC::LocalTensor<DType> dst,
 // vtranspose
 /////////////////////////////////////////////////////
 template <ArchType ArchTag, typename DType>
-__aicore__ inline void tranpose_v(AscendC::LocalTensor<DType> dst, AscendC::LocalTensor<DType> src)
+__aicore__ inline void transpose_v(AscendC::LocalTensor<DType> dst, AscendC::LocalTensor<DType> src)
 {
     AscendC::Transpose(dst, src);
 }

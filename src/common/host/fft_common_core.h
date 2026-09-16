@@ -113,41 +113,41 @@ inline void getTile(
     int64_t N1, int64_t N2, int64_t stepIndex, int64_t stepLen, int32_t& tileM0, int32_t& tileN0, int32_t& tileK0)
 {
     constexpr int32_t N1_MAX45 = 45, N1_MAX64 = 64, N2_MAX8 = 8;
-    constexpr int32_t TITLE_CONST = 128, CACL_TWO = 2, STEP_LEN_THREE = 3;
+    constexpr int32_t TILE_CONST = 128, CALC_TWO = 2, STEP_LEN_THREE = 3;
     if (N1 <= N1_MAX45 || (N1 <= N1_MAX64 && N2 <= N2_MAX8)) {
-        tileM0 = ROUND_UP(CACL_TWO * N1, ROUND_16);
+        tileM0 = ROUND_UP(CALC_TWO * N1, ROUND_16);
         tileK0 = tileM0;
         if (stepIndex == stepLen - 1)
-            tileK0 = CACL_TWO * ROUND_UP(N1, ROUND_16);
+            tileK0 = CALC_TWO * ROUND_UP(N1, ROUND_16);
         if (tileK0 == 0)
             throw std::runtime_error("tileK0 is 0");
-        tileN0 = L0AB_BUF * CACL_TWO / tileK0 / ROUND_16 * ROUND_16;
+        tileN0 = L0AB_BUF * CALC_TWO / tileK0 / ROUND_16 * ROUND_16;
         tileN0 = MIN_(tileN0, ROUND_UP(N2, ROUND_16));
     } else {
-        tileM0 = TITLE_CONST;
-        tileN0 = TITLE_CONST;
-        tileK0 = TITLE_CONST;
+        tileM0 = TILE_CONST;
+        tileN0 = TILE_CONST;
+        tileK0 = TILE_CONST;
         if (stepIndex == stepLen - 1) {
-            if (tileK0 > CACL_TWO * ROUND_UP(N1, ROUND_16) / CACL_TWO && tileK0 < CACL_TWO * ROUND_UP(N1, ROUND_16))
-                tileK0 = MIN_(tileK0, ROUND_UP(CACL_TWO * ROUND_UP(N1, ROUND_16) / CACL_TWO, ROUND_16));
-            tileK0 = MIN_(tileK0, CACL_TWO * ROUND_UP(N1, ROUND_16));
+            if (tileK0 > CALC_TWO * ROUND_UP(N1, ROUND_16) / CALC_TWO && tileK0 < CALC_TWO * ROUND_UP(N1, ROUND_16))
+                tileK0 = MIN_(tileK0, ROUND_UP(CALC_TWO * ROUND_UP(N1, ROUND_16) / CALC_TWO, ROUND_16));
+            tileK0 = MIN_(tileK0, CALC_TWO * ROUND_UP(N1, ROUND_16));
             if (tileK0 > N1_MAX64)
-                tileK0 = ROUND_UP(tileK0, TITLE_CONST);
+                tileK0 = ROUND_UP(tileK0, TILE_CONST);
         } else {
-            if (tileK0 > CACL_TWO * N1 / CACL_TWO && tileK0 < CACL_TWO * N1)
-                tileK0 = MIN_(tileK0, ROUND_UP(CACL_TWO * N1 / CACL_TWO, ROUND_16));
-            tileK0 = MIN_(tileK0, ROUND_UP(CACL_TWO * N1, ROUND_16));
+            if (tileK0 > CALC_TWO * N1 / CALC_TWO && tileK0 < CALC_TWO * N1)
+                tileK0 = MIN_(tileK0, ROUND_UP(CALC_TWO * N1 / CALC_TWO, ROUND_16));
+            tileK0 = MIN_(tileK0, ROUND_UP(CALC_TWO * N1, ROUND_16));
         }
-        if (tileM0 > CACL_TWO * N1 / CACL_TWO && tileM0 < CACL_TWO * N1)
-            tileM0 = MIN_(tileM0, ROUND_UP(CACL_TWO * N1 / CACL_TWO, ROUND_16));
-        tileM0 = MIN_(tileM0, ROUND_UP(CACL_TWO * N1, ROUND_16));
+        if (tileM0 > CALC_TWO * N1 / CALC_TWO && tileM0 < CALC_TWO * N1)
+            tileM0 = MIN_(tileM0, ROUND_UP(CALC_TWO * N1 / CALC_TWO, ROUND_16));
+        tileM0 = MIN_(tileM0, ROUND_UP(CALC_TWO * N1, ROUND_16));
         tileN0 = MIN_(tileN0, ROUND_UP(N2, ROUND_16));
     }
-    if (((stepLen <= STEP_LEN_THREE || stepIndex != stepLen - CACL_TWO)) && tileN0 > N1_MAX64) {
-        if (tileK0 * ROUND_UP(tileN0, TITLE_CONST) <= L0AB_BUF * CACL_TWO)
-            tileN0 = ROUND_UP(tileN0, TITLE_CONST);
+    if (((stepLen <= STEP_LEN_THREE || stepIndex != stepLen - CALC_TWO)) && tileN0 > N1_MAX64) {
+        if (tileK0 * ROUND_UP(tileN0, TILE_CONST) <= L0AB_BUF * CALC_TWO)
+            tileN0 = ROUND_UP(tileN0, TILE_CONST);
         else
-            tileN0 = tileN0 / TITLE_CONST * TITLE_CONST;
+            tileN0 = tileN0 / TILE_CONST * TILE_CONST;
     }
 }
 

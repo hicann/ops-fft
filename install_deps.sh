@@ -61,7 +61,7 @@ detect_os() {
                 PKG_MANAGER="yum"
             fi
         else
-            echo "自动安装脚本不支持该Linux发型版本，请手动安装依赖"
+            echo "自动安装脚本不支持该Linux发行版本，请手动安装依赖"
             exit 1
         fi
     elif [[ "$(uname -s)" == "Darwin" ]]; then
@@ -317,32 +317,6 @@ install_pigz() {
         echo "pigz installed successfully ($curr_ver)"
     else
         echo "pigz installation failed, can be ignored"
-    fi
-}
-
-install_dos2unix() {
-    echo -e "\n==== Checking dos2unix ===="
-
-    if command -v dos2unix &> /dev/null; then
-        echo "dos2unix has been installed"
-        return
-    fi
-
-    echo "Installing dos2unix..."
-    case "$OS" in
-        debian|rhel)
-            run_command sudo $PKG_MANAGER install -y dos2unix
-            ;;
-        macos)
-            run_command brew install dos2unix
-            ;;
-    esac
-
-    if command -v dos2unix &> /dev/null; then
-        echo "dos2unix installed successfully"
-    else
-        echo "dos2unix installation failed"
-        exit 1
     fi
 }
 

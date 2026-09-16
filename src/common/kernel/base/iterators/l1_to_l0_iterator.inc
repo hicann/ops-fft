@@ -14,8 +14,8 @@
 /////////////////////////////////////////////////////
 
 // Partial specialization for vector
-template <ArchType ArchTag, typename DataType, bool IsTransPose>
-struct l1_to_l0_a<ArchTag, DataType, IsTransPose, DataFormat::VECTOR, DataFormat::VECTOR> {
+template <ArchType ArchTag, typename DataType, bool IsTranspose>
+struct l1_to_l0_a<ArchTag, DataType, IsTranspose, DataFormat::VECTOR, DataFormat::VECTOR> {
     using HardwareParams = HardwareInfo<ArchTag>;
     static constexpr uint32_t FRACTAL_SIZE = HardwareParams::fractalSize / sizeof(DataType);
 
@@ -35,7 +35,7 @@ struct l1_to_l0_a<ArchTag, DataType, IsTransPose, DataFormat::VECTOR, DataFormat
                                                     kSrcStride,  // srcStride
                                                     0,           // sid
                                                     kDstStride,  // dstStride
-                                                    IsTransPose, // transpose
+                                                    IsTranspose, // transpose
                                                     0));         // addrCalMode
     };
 };
@@ -139,8 +139,8 @@ struct l1_to_l0_a<ArchTag, DataType, false, DataFormat::NZ, DataFormat::ZZ> {
 /////////////////////////////////////////////////////
 
 // Partial specialization for vector
-template <ArchType ArchTag, typename DataType, bool IsTransPose>
-struct l1_to_l0_b<ArchTag, DataType, IsTransPose, DataFormat::VECTOR, DataFormat::VECTOR> {
+template <ArchType ArchTag, typename DataType, bool IsTranspose>
+struct l1_to_l0_b<ArchTag, DataType, IsTranspose, DataFormat::VECTOR, DataFormat::VECTOR> {
     using HardwareParams = HardwareInfo<ArchTag>;
     static constexpr uint32_t FRACTAL_SIZE = HardwareParams::fractalSize / sizeof(DataType);
 
@@ -154,7 +154,7 @@ struct l1_to_l0_b<ArchTag, DataType, IsTransPose, DataFormat::VECTOR, DataFormat
                           uint32_t kDstStride)
     {
         AscendC::LoadData(
-            l0Tensor, l1Tensor, AscendC::LoadData2dParams(0, kPartCeil, kSrcStride, 0, kDstStride, IsTransPose, 0));
+            l0Tensor, l1Tensor, AscendC::LoadData2dParams(0, kPartCeil, kSrcStride, 0, kDstStride, IsTranspose, 0));
     };
 };
 

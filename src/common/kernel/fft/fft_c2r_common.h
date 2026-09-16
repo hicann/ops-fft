@@ -7,6 +7,10 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
+
+#ifndef OPSFFT_COMMON_KERNEL_FFT_C2R_COMMON_H
+#define OPSFFT_COMMON_KERNEL_FFT_C2R_COMMON_H
+
 #include "kernel_operator.h"
 
 #include "fft_all_common.h"
@@ -424,3 +428,5 @@ __aicore__ __inline__ void common_fft_c2r_mix_even_vector_by_batch(
     }
 
 }
+
+#endif

@@ -8,6 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#ifndef OPSFFT_COMMON_KERNEL_FFT_FFTMATMUL_H
+#define OPSFFT_COMMON_KERNEL_FFT_FFTMATMUL_H
+
 #include "kernel_operator.h"
 #include "common.h"
 #include "common_func.h"
@@ -1188,3 +1191,5 @@ __aicore__ __inline__ __attribute__((overloadable, always_inline)) void fft_matm
     WAIT_FLAG(FIX, M, EVENT_ID0);
     WAIT_FLAG(FIX, M, EVENT_ID1);
 }
+
+#endif

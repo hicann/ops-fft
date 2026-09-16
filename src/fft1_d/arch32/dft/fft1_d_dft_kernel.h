@@ -9,9 +9,12 @@
  */
 
 /*!
- * \file fft1_d.h
+ * \file fft1_d_dft_kernel.h
  * \brief
  */
+
+#ifndef FFT1_D_DFT_KERNEL_H
+#define FFT1_D_DFT_KERNEL_H
 
 #include "kernel/fft_common_kernel.h"
 #include "fft1_d_dft_tilingdata.h"
@@ -404,7 +407,7 @@ extern "C" __global__ __aicore__ void dft(__gm__ T_INPUT *__restrict__ gm_a, __g
 
         // copy from L0C to gm
         // 修改代码，将矩阵乘结果的dst stride修改为K，之前是N。修改为K的原因是因为右矩阵是一个方阵，
-        // 完整的DFT的结果就是BachSize * K(这个K表示的是矩阵乘的K参数，这个K参数等于输入参数n。).
+        // 完整的DFT的结果就是BatchSize * K(这个K表示的是矩阵乘的K参数，这个K参数等于输入参数n。).
 #if (__CCE_AICORE__ == 220)
         auto intriParams = AscendC::FixpipeParamsV220(n_actual, // nSize
                                                       m_actual, // mSize
@@ -441,3 +444,5 @@ extern "C" __global__ __aicore__ void dft(__gm__ T_INPUT *__restrict__ gm_a, __g
 
     PIPE_BARRIER(ALL);
 }
+
+#endif

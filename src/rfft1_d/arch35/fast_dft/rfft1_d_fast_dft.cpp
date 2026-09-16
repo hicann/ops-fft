@@ -60,7 +60,7 @@ struct AclrtFreeDeleter {
     }
 };
 
-// CalcColleyTukeyFactors 已删除：其仅在 n==524288 或 n>4096 时写入 factors，而入口
+// CalcCooleyTukeyFactors 已删除：其仅在 n==524288 或 n>4096 时写入 factors，而入口
 // 拒绝 n>4096（DFT_BORDER_VALUE），两个分支均不可达，在全部可达输入下为纯空操作
 // （issue #99）；factors 由调用方初始化为 {1,1,1} 后直接进入 Bluestein 计算
 

@@ -8,6 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#ifndef FFT1_D_N_KERNEL_H
+#define FFT1_D_N_KERNEL_H
+
 #include "kernel/fft_common_kernel.h"
 
 namespace FFT1DNKernel {
@@ -100,10 +103,10 @@ inline __aicore__ void ConvertLayoutRowMajorTozZ(__gm__ T_INPUT *__restrict__ gm
 
         auto buf0 = isPing ? buf0Ping : buf0Pong;
         auto buf1 = isPing ? buf1Ping : buf1Pong;
-        auto buf0EvendId = isPing ? EVENT_ID0 : EVENT_ID1;
-        auto buf1EvendId = isPing ? EVENT_ID0 : EVENT_ID1;
+        auto buf0EventId = isPing ? EVENT_ID0 : EVENT_ID1;
+        auto buf1EventId = isPing ? EVENT_ID0 : EVENT_ID1;
 
-        WAIT_FLAG(V, MTE2, buf0EvendId);
+        WAIT_FLAG(V, MTE2, buf0EventId);
         int32_t srcStride = (C - c_round) / BLOCK_LEN_32B;
         int64_t ndOffset = batch_idx * R * C + r_idx * R0 * C + c_idx * C0;
 #ifdef AIV_MTE2
@@ -134,9 +137,9 @@ inline __aicore__ void ConvertLayoutRowMajorTozZ(__gm__ T_INPUT *__restrict__ gm
         }
 #endif
 
-        SET_FLAG(MTE2, V, buf0EvendId);
-        WAIT_FLAG(MTE2, V, buf0EvendId);
-        WAIT_FLAG(MTE3, V, buf1EvendId);
+        SET_FLAG(MTE2, V, buf0EventId);
+        WAIT_FLAG(MTE2, V, buf0EventId);
+        WAIT_FLAG(MTE3, V, buf1EventId);
 
         int32_t r_round = (r_actual + 15) / 16 * 16;
         int32_t addRepeats = (c_round + 63) / 64;
@@ -154,10 +157,10 @@ inline __aicore__ void ConvertLayoutRowMajorTozZ(__gm__ T_INPUT *__restrict__ gm
         }
 #endif
 
-        SET_FLAG(V, MTE2, buf0EvendId);
+        SET_FLAG(V, MTE2, buf0EventId);
 
-        SET_FLAG(V, MTE3, buf1EvendId);
-        WAIT_FLAG(V, MTE3, buf1EvendId);
+        SET_FLAG(V, MTE3, buf1EventId);
+        WAIT_FLAG(V, MTE3, buf1EventId);
 
         int64_t RC = R * C;
         int32_t R0C = R0 * C;
@@ -176,7 +179,7 @@ inline __aicore__ void ConvertLayoutRowMajorTozZ(__gm__ T_INPUT *__restrict__ gm
             );
         }
 #endif
-        SET_FLAG(MTE3, V, buf1EvendId);
+        SET_FLAG(MTE3, V, buf1EventId);
 
         isPing = !isPing;
     }
@@ -452,7 +455,7 @@ __aicore__ __inline__ void PartitionMulDev(
     }
 }
 
-__aicore__ __inline__ void SeperateRIzZLayOut(__gm__ float *__restrict__ gm_input, __gm__ float *__restrict__ gm_output,
+__aicore__ __inline__ void SeparateRIzZLayOut(__gm__ float *__restrict__ gm_input, __gm__ float *__restrict__ gm_output,
                                               int32_t inputN, int32_t M, int32_t N, int32_t batchSize)
 {
     int32_t N0 = M < 128 ? 256 : 128;
@@ -553,7 +556,7 @@ __aicore__ __inline__ void SeperateRIzZLayOut(__gm__ float *__restrict__ gm_inpu
     }
 }
 
-__aicore__ __inline__ void SeperateRIwithCalculation(__gm__ float *__restrict__ gm_input,
+__aicore__ __inline__ void SeparateRIwithCalculation(__gm__ float *__restrict__ gm_input,
                                                      __gm__ float *__restrict__ gm_t_matrix,
                                                      __gm__ float *__restrict__ gm_output, int32_t fftDirection,
                                                      int32_t inputN, int32_t M, int32_t N, int32_t batchSize)
@@ -774,7 +777,7 @@ __aicore__ __inline__ void SeperateRIwithCalculation(__gm__ float *__restrict__ 
     WAIT_FLAG(MTE3, MTE2, EVENT_ID1);
 }
 
-__aicore__ __inline__ void SeperateRI(__gm__ float *__restrict__ gm_input, __gm__ float *__restrict__ gm_output,
+__aicore__ __inline__ void SeparateRI(__gm__ float *__restrict__ gm_input, __gm__ float *__restrict__ gm_output,
                                       int32_t inputN, int32_t batchSize)
 {
     AscendC::GlobalTensor<float> gm_input_tensor;
@@ -2775,14 +2778,14 @@ extern "C" __global__ __aicore__ void fft_n(__gm__ uint8_t *__restrict__ ffts_ad
 
                     if (N1 != 2) {
                         if (N < 65536) {
-                            SeperateRI(gm_input + addrBias, gm_output + addrBias, inputN, iBatch);
+                            SeparateRI(gm_input + addrBias, gm_output + addrBias, inputN, iBatch);
                         } else {
-                            SeperateRIzZLayOut(gm_input + addrBias, gm_output + addrBias, inputN, M, N, iBatch);
+                            SeparateRIzZLayOut(gm_input + addrBias, gm_output + addrBias, inputN, M, N, iBatch);
                         }
                         FftsCrossCoreSync<PIPE_MTE3, INTER_CORE_SYNC_MODE>(INTER_CORE_SYNC_FLAG_ID);
                         WaitFlagDev(INTER_CORE_SYNC_FLAG_ID);
                     } else {
-                        SeperateRIwithCalculation(gm_input + addrBias, gm_t_matrix + inputN, gm_output + addrBias,
+                        SeparateRIwithCalculation(gm_input + addrBias, gm_t_matrix + inputN, gm_output + addrBias,
                                                   fftDirection, inputN, 4, inputN / 2, iBatch);
 
                         config = 1 | (INTER_CORE_SYNC_MODE << 4) | (INTER_CORE_SYNC_FLAG_ID << 8);
@@ -2845,3 +2848,5 @@ extern "C" __global__ __aicore__ void fft_n(__gm__ uint8_t *__restrict__ ffts_ad
 }
 
 } // namespace
+
+#endif

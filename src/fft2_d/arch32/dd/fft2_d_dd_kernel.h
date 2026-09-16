@@ -8,6 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#ifndef FFT2_D_DD_KERNEL_H
+#define FFT2_D_DD_KERNEL_H
+
 #include "kernel/fft_common_kernel.h"
 
 #include <stdint.h>
@@ -109,7 +112,7 @@ __aicore__ __inline__ void SaveDataFromUbToGmWithJump(AscendC::GlobalTensor<floa
     );
 }
 
-__aicore__ __inline__ void SeperateRIMultiBatch(
+__aicore__ __inline__ void SeparateRIMultiBatch(
     AscendC::GlobalTensor<float> dst_gm_tensor, AscendC::GlobalTensor<float> src_gm_tensor, uint32_t x_len, uint32_t y_len, uint32_t current_batch_nums, bool flag) {
     AsdopsBuffer<ArchType::ASCEND_V220> buf;
     AscendC::LocalTensor<float> complex_buf1_ub_tensor = buf.GetBuffer<BufferType::ASCEND_UB, float>(0);
@@ -160,8 +163,8 @@ __aicore__ __inline__ void SeperateRIMultiBatch(
     }
 
 }
-__aicore__ __inline__ void SeperateRI(
-    AscendC::GlobalTensor<float> dst_gm_tensor, AscendC::GlobalTensor<float> src_gm_tensor, uint32_t seperate_count, uint32_t real_offset, uint32_t imag_offset) {
+__aicore__ __inline__ void SeparateRI(
+    AscendC::GlobalTensor<float> dst_gm_tensor, AscendC::GlobalTensor<float> src_gm_tensor, uint32_t separate_count, uint32_t real_offset, uint32_t imag_offset) {
     AsdopsBuffer<ArchType::ASCEND_V220> buf;
     AscendC::LocalTensor<float> complex_buf1_ub_tensor = buf.GetBuffer<BufferType::ASCEND_UB, float>(0);
     AscendC::LocalTensor<float> real_buf1_ub_tensor = buf.GetBuffer<BufferType::ASCEND_UB, float>(48*1024);
@@ -172,8 +175,8 @@ __aicore__ __inline__ void SeperateRI(
 
     const int32_t max_datacount_perloop = 48 * 1024 / (COMPLEX_DOUBLE * sizeof(float));
 
-    const int32_t loop_count = CeilADivB(seperate_count, max_datacount_perloop);
-    const int32_t loop_remain_count = seperate_count % max_datacount_perloop;
+    const int32_t loop_count = CeilADivB(separate_count, max_datacount_perloop);
+    const int32_t loop_remain_count = separate_count % max_datacount_perloop;
 
     // divide data
     bool flag = 0;
@@ -215,7 +218,7 @@ __aicore__ __inline__ void SeperateRI(
     AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID1);
 }
 
-__aicore__ __inline__ void SeperateRITWO(
+__aicore__ __inline__ void SeparateRITWO(
     AscendC::GlobalTensor<float> dst_gm_tensor, AscendC::GlobalTensor<float> src_gm_tensor, uint32_t x_len, uint32_t y_len) {
 
     uint32_t total_count = x_len * y_len;
@@ -224,13 +227,13 @@ __aicore__ __inline__ void SeperateRITWO(
     uint32_t real_offset = 0;
     uint32_t imag_offset = total_count;
     if (get_subblockid() == 0) {
-        SeperateRI(dst_gm_tensor, src_gm_tensor, first_vec_count, real_offset, imag_offset);
+        SeparateRI(dst_gm_tensor, src_gm_tensor, first_vec_count, real_offset, imag_offset);
     }else {
-        SeperateRI(dst_gm_tensor[first_vec_count], src_gm_tensor[first_vec_count * 2], second_vec_count, real_offset, imag_offset);
+        SeparateRI(dst_gm_tensor[first_vec_count], src_gm_tensor[first_vec_count * 2], second_vec_count, real_offset, imag_offset);
     }    
     
 }
-__aicore__ __inline__ void SeperateRITWOMultiBatch(
+__aicore__ __inline__ void SeparateRITWOMultiBatch(
     AscendC::GlobalTensor<float> dst_gm_tensor, AscendC::GlobalTensor<float> src_gm_tensor, uint32_t x_len, uint32_t y_len, uint32_t current_batch_nums) {
 
     AscendC::GlobalTensor<float> dst_current_gm_tensor;
@@ -245,7 +248,7 @@ __aicore__ __inline__ void SeperateRITWOMultiBatch(
         }
         dst_current_gm_tensor = dst_gm_tensor[i * y_len];
         src_current_gm_tensor = src_gm_tensor[i * x_len * y_len * COMPLEX_DOUBLE];
-        SeperateRIMultiBatch(dst_current_gm_tensor, src_current_gm_tensor, x_len, y_len, current_batch_nums, flag);
+        SeparateRIMultiBatch(dst_current_gm_tensor, src_current_gm_tensor, x_len, y_len, current_batch_nums, flag);
         flag = 1 - flag; 
     }
     AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
@@ -752,7 +755,7 @@ __aicore__ __inline__ void Matmul(
 
         // copy from L0C to gm 
         // 修改代码，将矩阵乘结果的dst stride修改为K，之前是N。修改为K的原因是因为右矩阵是一个方阵，
-        // 完整的DFT的结果就是BachSize * K(这个K表示的是矩阵乘的K参数，这个K参数等于输入参数n。).
+        // 完整的DFT的结果就是BatchSize * K(这个K表示的是矩阵乘的K参数，这个K参数等于输入参数n。).
         auto intriParams = AscendC::FixpipeParamsV220(n_actual, // nSize
                                             m_actual, // mSize
                                             m_round,   // srcStride
@@ -884,7 +887,7 @@ __aicore__ __inline__ void MatmulFirst(
             auto b_l1_tensor = ping_flag ? b_base_l1_tensor : b_base_l1_tensor[l1_pingpong_buffer_len_real];
             auto event_id = ping_flag ? EVENT_ID0 : EVENT_ID1;
 
-            // *** load matrix A to L1(omited)
+            // *** load matrix A to L1(omitted)
             AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(event_id);
             AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(event_id);
 
@@ -1064,7 +1067,7 @@ __aicore__ __inline__ void MatmulFirst(
 
         // copy from L0C to gm 
         // 修改代码，将矩阵乘结果的dst stride修改为K，之前是N。修改为K的原因是因为右矩阵是一个方阵，
-        // 完整的DFT的结果就是BachSize * K(这个K表示的是矩阵乘的K参数，这个K参数等于输入参数n。).
+        // 完整的DFT的结果就是BatchSize * K(这个K表示的是矩阵乘的K参数，这个K参数等于输入参数n。).
         auto intriParams = AscendC::FixpipeParamsV220(n_actual, // nSize
                                             m_actual, // mSize
                                             m_round,   // srcStride
@@ -1231,7 +1234,7 @@ __aicore__ __inline__ void MatmulSecond(
             }
             AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(event_id);
 
-            // *** load matrix B to L1 (omited)
+            // *** load matrix B to L1 (omitted)
             AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(event_id + 2);
             AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(event_id + 2);
 
@@ -1394,7 +1397,7 @@ __aicore__ __inline__ void MatmulSecond(
 
         // copy from L0C to gm 
         // 修改代码，将矩阵乘结果的dst stride修改为K，之前是N。修改为K的原因是因为右矩阵是一个方阵，
-        // 完整的DFT的结果就是BachSize * K(这个K表示的是矩阵乘的K参数，这个K参数等于输入参数n。).
+        // 完整的DFT的结果就是BatchSize * K(这个K表示的是矩阵乘的K参数，这个K参数等于输入参数n。).
         auto intriParams = AscendC::FixpipeParamsV220(n_actual, // nSize
                                             m_actual, // mSize
                                             m_round,   // srcStride
@@ -1525,7 +1528,7 @@ __aicore__ __inline__ void MatmulWithSpecialTransfer(
             auto b_l1_tensor = ping_flag ? b_base_l1_tensor : b_base_l1_tensor[l1_pingpong_buffer_len_real];
             auto event_id = ping_flag ? EVENT_ID0 : EVENT_ID1;
 
-            // *** load matrix A to L1 (omited)
+            // *** load matrix A to L1 (omitted)
             AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(event_id);
             AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(event_id);
 
@@ -1802,9 +1805,9 @@ extern "C" __global__ __aicore__ void dd(
             output_current_gm_tensor.SetGlobalBuffer(gm_output + loop_idx * batch_nums_per_loop * (dft_xlength * dft_ylength * COMPLEX_DOUBLE));
 
             if (current_batch_nums == 1) {
-                SeperateRITWO(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength);
+                SeparateRITWO(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength);
             }else {
-                SeperateRITWOMultiBatch(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength, current_batch_nums);
+                SeparateRITWOMultiBatch(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength, current_batch_nums);
             }
 
             // 发信号启动矩阵乘迭代
@@ -1839,9 +1842,9 @@ extern "C" __global__ __aicore__ void dd(
             output_current_gm_tensor.SetGlobalBuffer(gm_output + loop_idx * batch_nums_per_loop * (dft_xlength * dft_ylength * COMPLEX_DOUBLE));
 
             if (current_batch_nums == 1) {
-                SeperateRITWO(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength);
+                SeparateRITWO(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength);
             }else {
-                SeperateRITWOMultiBatch(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength, current_batch_nums);
+                SeparateRITWOMultiBatch(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength, current_batch_nums);
             }
 
                 // 发信号启动矩阵乘迭代
@@ -1868,9 +1871,9 @@ extern "C" __global__ __aicore__ void dd(
             output_current_gm_tensor.SetGlobalBuffer(gm_output + loop_idx * batch_nums_per_loop * (dft_xlength * dft_ylength * COMPLEX_DOUBLE));
 
             if (current_batch_nums == 1) {
-                SeperateRITWO(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength);
+                SeparateRITWO(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength);
             }else {
-                SeperateRITWOMultiBatch(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength, current_batch_nums);
+                SeparateRITWOMultiBatch(output_current_gm_tensor, input_current_gm_tensor, dft_xlength, dft_ylength, current_batch_nums);
             }
 
                 // 发信号启动矩阵乘迭代
@@ -2130,3 +2133,5 @@ extern "C" __global__ __aicore__ void dd(
 }
 
 } // namespace FFT2DKernel
+
+#endif

@@ -7,8 +7,8 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
-#ifndef INCLUDE_SET_FPC_H
-#define INCLUDE_SET_FPC_H
+#ifndef OPSFFT_COMMON_KERNEL_BASE_SET_FPC_H
+#define OPSFFT_COMMON_KERNEL_BASE_SET_FPC_H
 
 #include "hardware.h"
 #include "kernel_tensor.h"

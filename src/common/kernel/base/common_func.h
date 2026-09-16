@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef INCLUDE_COMMON_FUNC_H
-#define INCLUDE_COMMON_FUNC_H
+#ifndef OPSFFT_COMMON_KERNEL_BASE_COMMON_FUNC_H
+#define OPSFFT_COMMON_KERNEL_BASE_COMMON_FUNC_H
 
 #include <limits>
 #include <type_traits>
@@ -97,7 +97,7 @@ template <typename Dtype> __aicore__ __attribute__((always_inline)) inline uint6
     return (num + MatrixSize<Dtype>() - 1) / MatrixSize<Dtype>() * MatrixSize<Dtype>();
 }
 
-template <typename Dtype> __aicore__ __attribute__((always_inline)) inline uint64_t NumMatrixsRoundUp(uint64_t num)
+template <typename Dtype> __aicore__ __attribute__((always_inline)) inline uint64_t NumMatricesRoundUp(uint64_t num)
 {
     return (num + MatrixSize<Dtype>() - 1) / MatrixSize<Dtype>();
 }

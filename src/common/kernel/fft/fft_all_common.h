@@ -7,6 +7,10 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
+
+#ifndef OPSFFT_COMMON_KERNEL_FFT_ALL_COMMON_H
+#define OPSFFT_COMMON_KERNEL_FFT_ALL_COMMON_H
+
 #include <assert.h>
 
 #include "kernel_utils.h"
@@ -617,3 +621,5 @@ __aicore__ __inline__ void common_fft_mix_cube(
                       gm_workspace_sync, gm_radix_list, gm_output, gm_auxil, tiling_data.batchSize, tiling_data.fftN,
                       tiling_data.radixListLen, tiling_data.isInverse);
 }
+
+#endif

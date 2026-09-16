@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef IRFFT1_D_DFT_KERNEL_H
-#define IRFFT1_D_DFT_KERNEL_H
+#ifndef IRFFT1_D_FFT_KERNEL_H
+#define IRFFT1_D_FFT_KERNEL_H
 
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
 

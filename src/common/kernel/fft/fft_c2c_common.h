@@ -7,6 +7,10 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
+
+#ifndef OPSFFT_COMMON_KERNEL_FFT_C2C_COMMON_H
+#define OPSFFT_COMMON_KERNEL_FFT_C2C_COMMON_H
+
 #include "fft_all_common.h"
 
 template <bool is_vec_vtranspose_load, int32_t aiv_split_way>
@@ -37,3 +41,5 @@ common_fft_mix_vector(__gm__ uint8_t *__restrict__ ffts_addr, __gm__ float *__re
         gm_radix_list, gm_output, gm_auxil, tiling_data.batchSize, tiling_data.fftN, tiling_data.radixListLen,
         tiling_data.isInverse);
 }
+
+#endif

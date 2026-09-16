@@ -7,8 +7,8 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
-#ifndef INCLUDE_ITERTOR_H
-#define INCLUDE_ITERTOR_H
+#ifndef OPSFFT_COMMON_KERNEL_BASE_ITERATOR_H
+#define OPSFFT_COMMON_KERNEL_BASE_ITERATOR_H
 
 #include "common_func.h"
 #include "hardware.h"
@@ -34,7 +34,7 @@ struct gm_to_l1 {
 /////////////////////////////////////////////////////
 // l1_to_l0_a
 /////////////////////////////////////////////////////
-template <ArchType ArchTag, typename DataType, bool IsTransPose, DataFormat DFmtIn, DataFormat DFmtOut>
+template <ArchType ArchTag, typename DataType, bool IsTranspose, DataFormat DFmtIn, DataFormat DFmtOut>
 struct l1_to_l0_a {
     __aicore__ l1_to_l0_a(AscendC::LocalTensor<DataType> l0Tensor,
                           AscendC::LocalTensor<DataType> l1Tensor,
@@ -49,7 +49,7 @@ struct l1_to_l0_a {
 /////////////////////////////////////////////////////
 // l1_to_l0_b
 /////////////////////////////////////////////////////
-template <ArchType ArchTag, typename DataType, bool IsTransPose, DataFormat DFmtIn, DataFormat DFmtOut>
+template <ArchType ArchTag, typename DataType, bool IsTranspose, DataFormat DFmtIn, DataFormat DFmtOut>
 struct l1_to_l0_b {
     __aicore__ l1_to_l0_b(AscendC::LocalTensor<DataType> l0Tensor,
                           AscendC::LocalTensor<DataType> l1Tensor,
@@ -63,7 +63,7 @@ struct l1_to_l0_b {
 
 // l1_to_l0_a
 /////////////////////////////////////////////////////
-template <ArchType ArchTag, typename DataType, bool IsTransPose, bool IsVectore>
+template <ArchType ArchTag, typename DataType, bool IsTranspose, bool IsVector>
 struct l1_to_l0_a_v1 {
     __aicore__ l1_to_l0_a_v1(AscendC::LocalTensor<DataType> l0_tensor,
                              AscendC::LocalTensor<DataType> l1_tensor,
@@ -77,7 +77,7 @@ struct l1_to_l0_a_v1 {
 /////////////////////////////////////////////////////
 // l1_to_l0_b
 /////////////////////////////////////////////////////
-template <ArchType ArchTag, typename DataType, bool IsTransPose, bool IsVectore>
+template <ArchType ArchTag, typename DataType, bool IsTranspose, bool IsVector>
 struct l1_to_l0_b_v1 {
     __aicore__ l1_to_l0_b_v1(AscendC::LocalTensor<DataType> l0_tensor,
                              AscendC::LocalTensor<DataType> l1_tensor,

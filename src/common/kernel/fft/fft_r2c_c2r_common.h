@@ -8,6 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#ifndef OPSFFT_COMMON_KERNEL_FFT_FFT_R2C_C2R_COMMON_H
+#define OPSFFT_COMMON_KERNEL_FFT_FFT_R2C_C2R_COMMON_H
+
 #define ASCENDFFT_FORWARD -1  // Forward FFT
 #define ASCENDFFT_INVERSE 1   // Inverse FFT
 
@@ -775,3 +778,5 @@ __aicore__ __inline__ void R2C_even_tail_calc(
 #define MIX_CORE
 #include "r2c_c2r_common.h"
 #undef MIX_CORE
+
+#endif

@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file fft1_d.cpp
+ * \file fft1_d_stride.cpp
  * \brief
  */
 

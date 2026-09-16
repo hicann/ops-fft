@@ -61,7 +61,7 @@ static void GenABTable(int64_t fftN, int parity, bool forward, std::vector<float
     if ((isR2c && !forward) || (!isR2c && forward)) {
         factor = -1.0;
     }
-    // For R2C forward: (true && false) || (false && true) = false ??factor = 1.0
+    // For R2C forward: (true && false) || (false && true) = false → factor = 1.0
 
     if (parity == 0) {
         int32_t tableSize = (int32_t)fftN;

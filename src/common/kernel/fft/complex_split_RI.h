@@ -8,6 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#ifndef OPSFFT_COMMON_KERNEL_FFT_COMPLEX_SPLIT_RI_H
+#define OPSFFT_COMMON_KERNEL_FFT_COMPLEX_SPLIT_RI_H
+
 #include "kernel_operator.h"
 #include "common.h"
 #include "common_func.h"
@@ -1046,3 +1049,5 @@ __aicore__ __inline__ __attribute__((always_inline)) void complex_split_RI_tile_
     WAIT_FLAG(MTE3, MTE2, EVENT_ID0);
     WAIT_FLAG(MTE3, MTE2, EVENT_ID1);
 }
+
+#endif

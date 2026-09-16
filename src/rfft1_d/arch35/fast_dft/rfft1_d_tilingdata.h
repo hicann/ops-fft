@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef RFFT1_D_TILINGDATA_H
-#define RFFT1_D_TILINGDATA_H
+#ifndef RFFT1_D_FAST_DFT_TILINGDATA_H
+#define RFFT1_D_FAST_DFT_TILINGDATA_H
 
 struct Rfft1DTilingData {
     int32_t length;
@@ -42,4 +42,4 @@ struct Rfft1DTilingData {
     uint32_t twiddleOffsets[3];
 };
 
-#endif // RFFT1_D_TILINGDATA_H
+#endif // RFFT1_D_FAST_DFT_TILINGDATA_H

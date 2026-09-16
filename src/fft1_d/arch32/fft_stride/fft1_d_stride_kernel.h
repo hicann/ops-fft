@@ -8,6 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#ifndef FFT1_D_STRIDE_KERNEL_H
+#define FFT1_D_STRIDE_KERNEL_H
+
 #include "kernel/fft_common_kernel.h"
 
 namespace FFT1DStrideKernel {
@@ -156,7 +159,7 @@ __aicore__ __inline__ void SaveDataFromUbToGmDev(
 }
 
 // (n,d,s_0,2)->(2,n,s_0)
-__aicore__ __inline__ void SeperateRI(__gm__ float *__restrict__ gm_dst, __gm__ float *__restrict__ gm_src,
+__aicore__ __inline__ void SeparateRI(__gm__ float *__restrict__ gm_dst, __gm__ float *__restrict__ gm_src,
                                       int32_t nValue, int32_t dValue, int32_t srcDValue)
 {
     // 除0整改
@@ -309,7 +312,7 @@ __aicore__ __inline__ void TransposeWithStrideAndCombineRI(__gm__ float *__restr
 
             // vtranspose
             for (int32_t i = 0; i < current_repeat_cnt * dValue / 64; i++) {
-                tranpose_v<ArchType::ASCEND_V220, uint16_t>(
+                transpose_v<ArchType::ASCEND_V220, uint16_t>(
                     buf1_tensor[i * 128].template ReinterpretCast<uint16_t>(),
                     buf0_tensor[i * 128].template ReinterpretCast<uint16_t>()
                 );
@@ -341,7 +344,7 @@ __aicore__ __inline__ void TransposeWithStrideAndCombineRI(__gm__ float *__restr
 
             // vtranspose
             for (int32_t i = 0; i < current_repeat_cnt * dValue / 64; i++) {
-                tranpose_v<ArchType::ASCEND_V220, uint16_t>(
+                transpose_v<ArchType::ASCEND_V220, uint16_t>(
                     buf1_tensor[i * 128].template ReinterpretCast<uint16_t>(),
                     buf0_tensor[i * 128].template ReinterpretCast<uint16_t>()
                 );
@@ -850,7 +853,7 @@ extern "C" __global__ __aicore__ void fft_stride(__gm__ uint8_t *__restrict__ ff
             int32_t S0_current =
                 ((big_loop_idx == big_loop_count - 1) && (big_loop_remain_count > 0)) ? big_loop_remain_count : S0;
             // 虚实分离 -- check ok
-            SeperateRI(gm_workspace, gm_input_current, fft_length, S0_current, fft_stride);
+            SeparateRI(gm_workspace, gm_input_current, fft_length, S0_current, fft_stride);
 
             flag_id = SYNC_ALL_CORE_FLAG_ID;
             FftsCrossCoreSync<PIPE_MTE3, SYNC_ALL_CORE_FLAG_ID>(flag_id);
@@ -883,5 +886,6 @@ extern "C" __global__ __aicore__ void fft_stride(__gm__ uint8_t *__restrict__ ff
  #endif
 }
 
-} // namesapce
+} // namespace
 
+#endif

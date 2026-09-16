@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file fft1_d.cpp
+ * \file fft1_d_n.cpp
  * \brief
  */
 
@@ -230,9 +230,9 @@ static std::vector<int32_t> InitIndexTable(uint32_t fftN, const std::vector<uint
 
     // tN calculation
     int64_t tN = 1;
-    constexpr int64_t CALCUL_TWO = 2;
-    if (iterCount > CALCUL_TWO) {
-        for (uint32_t it = 0; it < (iterCount - CALCUL_TWO); ++it) {
+    constexpr int64_t CALCULATE_TWO = 2;
+    if (iterCount > CALCULATE_TWO) {
+        for (uint32_t it = 0; it < (iterCount - CALCULATE_TWO); ++it) {
             tN *= radixVec[it];
         }
     } else {

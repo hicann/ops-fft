@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef OPP_RFFT1D_FAST_H
-#define OPP_RFFT1D_FAST_H
+#ifndef RFFT1_D_FAST_H
+#define RFFT1_D_FAST_H
 
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
@@ -183,7 +183,7 @@ private:
         CountWholeDft();
     }
 
-    // Merges real and imaginary parts into complex represintation and moves to GM
+    // Merges real and imaginary parts into complex representation and moves to GM
     __aicore__ inline void CopyOut()
     {
         if (g_coreType != AIV or GetSubBlockIdx() != 0) {
@@ -233,4 +233,4 @@ __aicore__ inline TCubeTiling PrepareTiling(unsigned int m, unsigned int n, unsi
     return tiling;
 }
 
-#endif // OPP_RFFT1D_H
+#endif // RFFT1_D_FAST_H

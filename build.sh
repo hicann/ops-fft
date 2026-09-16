@@ -254,7 +254,7 @@ Options:
                       CANN third-party dependency path (default: ./third_party)
   -h, --help          Show this help message
   -v, --verbose       Verbose output
-  --make_clean        Clean build artifacts"
+  --make_clean        Clean build artifacts
 
 Supported SoC models:
   Ascend950     (dav-3510, default)
@@ -404,9 +404,14 @@ build_project() {
 
     # 编译
     log_info "Compiling with ${THREAD_NUM} threads..."
+    # 临时禁用 set -e，手动处理错误（同 run_tests 的既有模式），
+    # 使下面的失败提示真正可达（issue #109）
+    set +e
     cmake --build . -j${THREAD_NUM} ${VERBOSE}
+    build_result=$?
+    set -e
 
-    if [ $? -eq 0 ]; then
+    if [ $build_result -eq 0 ]; then
         log_success "Build succeeded"
     else
         log_error "Build failed"
@@ -424,9 +429,14 @@ build_package() {
 
     # 运行 ctest package target
     log_info "Running CPack..."
+    # 临时禁用 set -e，手动处理错误（同 run_tests 的既有模式），
+    # 使下面的失败提示真正可达（issue #109）
+    set +e
     cpack
+    cpack_result=$?
+    set -e
 
-    if [ $? -eq 0 ]; then
+    if [ $cpack_result -eq 0 ]; then
         log_success "Package created successfully"
         # 查找生成的 .run 文件
         local run_file=$(ls *.run 2>/dev/null | head -n 1)
@@ -518,7 +528,8 @@ parse_arguments() {
                         exit 1
                     fi
                     if [[ "$2" == -* ]]; then
-                        log_error "Invalid thread number: $2 (did you mean -j$N?)"
+                        local suggested_num="${2#-}"
+                        log_error "Invalid thread number: $2 (did you mean -j${suggested_num}?)"
                         exit 1
                     fi
                     THREAD_NUM="$2"

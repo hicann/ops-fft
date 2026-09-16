@@ -488,7 +488,7 @@ version_ge() {
     fi
 }
 
-version_vaild() {
+version_valid() {
     local ver_range="$1"        #version range
     local ver="$2"              #version provider
     local clean_ver_range=$(echo "$ver_range" | sed 's/"//g')   # clean ver_range,去除引号啥的
@@ -542,7 +542,7 @@ check_pkg_ver_deps() {
         itf=`echo $line | cut -d":" -f 3`
         ver=`echo $line | cut -d":" -f 5`
         req_ver=`awk -F '=' '$1=="'$itf'_version" {print $2}' "$req_ver_path"`
-        if ! version_vaild $ver $req_ver; then
+        if ! version_valid $ver $req_ver; then
             VerCheckStatus=FAIL
             ver_check_status=FAIL
             return

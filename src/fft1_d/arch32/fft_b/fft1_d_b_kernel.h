@@ -8,6 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#ifndef FFT1_D_B_KERNEL_H
+#define FFT1_D_B_KERNEL_H
+
 #include "kernel/fft_common_kernel.h"
 
 namespace FFT1DBKernel {
@@ -31,7 +34,7 @@ __aicore__ __inline__ void loop_tiling(int32_t batch_size, int32_t &loop_per_blo
     }
 }
 
-__aicore__ __inline__ void step_ppmatmal_0_1(__gm__ float *__restrict__ gm_a, __gm__ float *__restrict__ gm_b,
+__aicore__ __inline__ void step_ppmatmul_0_1(__gm__ float *__restrict__ gm_a, __gm__ float *__restrict__ gm_b,
                                              __gm__ float *__restrict__ gm_c, int32_t batch_size, int32_t iter,
                                              int32_t iter_count, int32_t fft_n, int32_t fft_batch_size, int32_t M,
                                              int32_t K, int32_t N, int32_t batch_id_begin, int32_t batch_id_end)
@@ -367,7 +370,7 @@ __aicore__ __inline__ void step_ppmatmal_0_1(__gm__ float *__restrict__ gm_a, __
     WAIT_FLAG(MTE1, MTE2, EVENT_ID3);
 }
 
-__aicore__ __inline__ void step_ppmatmal_2itercount_last_iter(__gm__ float *__restrict__ gm_a,
+__aicore__ __inline__ void step_ppmatmul_2itercount_last_iter(__gm__ float *__restrict__ gm_a,
                                                               __gm__ float *__restrict__ gm_b,
                                                               __gm__ float *__restrict__ gm_c, int32_t batch_size,
                                                               int32_t iter, int32_t iter_count, int32_t fft_n,
@@ -909,7 +912,7 @@ __aicore__ __inline__ void step_reduce(__gm__ float *__restrict__ gm_input, __gm
     WAIT_FLAG(MTE3, MTE2, EVENT_ID1);
 }
 
-__aicore__ __inline__ void SeperateRIwithRadix2(__gm__ float *__restrict__ gm_input,
+__aicore__ __inline__ void SeparateRIwithRadix2(__gm__ float *__restrict__ gm_input,
                                                 __gm__ float *__restrict__ gm_t_matrix,
                                                 __gm__ float *__restrict__ gm_output, int32_t fftDirection,
                                                 int32_t batch_size, int32_t inputN, int32_t M, int32_t N,
@@ -1166,7 +1169,7 @@ __aicore__ __inline__ void SeperateRIwithRadix2(__gm__ float *__restrict__ gm_in
     WAIT_FLAG(MTE3, MTE2, EVENT_ID1);
 }
 
-__aicore__ __inline__ void SeperateRIwithRadix4(__gm__ float *__restrict__ gm_input,
+__aicore__ __inline__ void SeparateRIwithRadix4(__gm__ float *__restrict__ gm_input,
                                                 __gm__ float *__restrict__ gm_t_matrix,
                                                 __gm__ float *__restrict__ gm_output, int32_t fftDirection,
                                                 int32_t batch_size, int32_t inputN, int32_t M, int32_t N,
@@ -1775,7 +1778,7 @@ __aicore__ __inline__ void step_complex_mul_0_1(__gm__ float *__restrict__ input
         batch_actual = batch_actual * fft_batch_actual;
         for (int32_t fft_batch_id = 0; fft_batch_id < fft_batch_size; ++fft_batch_id) {
             for (int32_t m_idx = 0; m_idx < m_loop; ++m_idx) {
-                for (int32_t n_idx = 0; n_idx < n_loop; ++n_idx) {  // 与step_ppmatmal_0_1对应,但实际上可以删去
+                for (int32_t n_idx = 0; n_idx < n_loop; ++n_idx) {  // 与step_ppmatmul_0_1对应,但实际上可以删去
 
                     int32_t m_actual = (m_idx == (m_loop - 1)) ? (row - m_idx * M0) : M0;
                     int32_t n_actual = (n_idx == (n_loop - 1)) ? (col - n_idx * N0) : N0;
@@ -2243,7 +2246,7 @@ extern "C" __global__ __aicore__ void fft_b(__gm__ uint8_t *__restrict__ ffts_ad
         // 第三次迭代开始，需要进行跨stride拷贝，所以需要输入拷贝的值。第三次迭代，是N2,第四次迭代是N1*N2.
         int32_t fft_iter_n_stride = 1;
 
-        int32_t fft_ppmatmal_batch = 1;
+        int32_t fft_ppmatmul_batch = 1;
         int32_t w_matrix_step = 0;
         uint16_t flag_id = 0;
 
@@ -2275,13 +2278,13 @@ extern "C" __global__ __aicore__ void fft_b(__gm__ uint8_t *__restrict__ ffts_ad
                 for (int32_t i = it + 1; i < iter_count; ++i) {
                     N *= tiling_para[4 + i];
                 }
-                fft_ppmatmal_batch = fft_n * 2 / 16384;
-                if (fft_ppmatmal_batch == 0) {
-                    fft_ppmatmal_batch = 1;
+                fft_ppmatmul_batch = fft_n * 2 / 16384;
+                if (fft_ppmatmul_batch == 0) {
+                    fft_ppmatmul_batch = 1;
                 }
 
-                step_ppmatmal_0_1(gm_w_matrix + w_matrix_step, gm_output, gm_workspace, inner_batch, it, iter_count,
-                                  fft_n, fft_ppmatmal_batch, M, K, N, batch_start,
+                step_ppmatmul_0_1(gm_w_matrix + w_matrix_step, gm_output, gm_workspace, inner_batch, it, iter_count,
+                                  fft_n, fft_ppmatmul_batch, M, K, N, batch_start,
                                   batch_end);  // 8192及以下case， 固定设置fft_batch为1
             } else if ((it == 1) && (iter_count == 2)) {
                 // 两次迭代的第二次计算过程
@@ -2295,13 +2298,13 @@ extern "C" __global__ __aicore__ void fft_b(__gm__ uint8_t *__restrict__ ffts_ad
                     N = 4;
                 }
                 w_matrix_step = tiling_para[4] * tiling_para[4] * 4;
-                fft_ppmatmal_batch = fft_n * 2 / 16384;
-                if (fft_ppmatmal_batch == 0) {
-                    fft_ppmatmal_batch = 1;
+                fft_ppmatmul_batch = fft_n * 2 / 16384;
+                if (fft_ppmatmul_batch == 0) {
+                    fft_ppmatmul_batch = 1;
                 }
 
-                step_ppmatmal_2itercount_last_iter(gm_w_matrix + w_matrix_step, gm_output, gm_workspace, inner_batch,
-                                                   it, iter_count, fft_n, fft_ppmatmal_batch, M, K, N, batch_start,
+                step_ppmatmul_2itercount_last_iter(gm_w_matrix + w_matrix_step, gm_output, gm_workspace, inner_batch,
+                                                   it, iter_count, fft_n, fft_ppmatmul_batch, M, K, N, batch_start,
                                                    batch_end);  // 8192及以下case， 固定设置fft_batch为1
             }
         }
@@ -2381,15 +2384,15 @@ extern "C" __global__ __aicore__ void fft_b(__gm__ uint8_t *__restrict__ ffts_ad
         uint64_t t_matrix_step = 0;
         int32_t fft_batch_size = 1;
 
-        // SeperateRIwithRadix2过程把虚实分离的结果放入gm_output中
+        // SeparateRIwithRadix2过程把虚实分离的结果放入gm_output中
         if (fft_n != 8192 && fft_n != 16384) {
             step_reduce(gm_input, gm_output, inner_batch, fft_n, fft_n / tilingPara4, batch_start, batch_end);
         } else if (fft_n == 8192) {
-            SeperateRIwithRadix2(gm_input, gm_t_matrix, gm_output, fftDirection, inner_batch, fft_n, 4, fft_n / 2, 64,
+            SeparateRIwithRadix2(gm_input, gm_t_matrix, gm_output, fftDirection, inner_batch, fft_n, 4, fft_n / 2, 64,
                                  batch_start, batch_end);
             t_matrix_step += fft_n * 2;
         } else {
-            SeperateRIwithRadix4(gm_input, gm_t_matrix, gm_output, fftDirection, inner_batch, fft_n, 8, fft_n / 4, 64,
+            SeparateRIwithRadix4(gm_input, gm_t_matrix, gm_output, fftDirection, inner_batch, fft_n, 8, fft_n / 4, 64,
                                  batch_start, batch_end);
             t_matrix_step += fft_n * 2;
         }
@@ -2454,3 +2457,5 @@ extern "C" __global__ __aicore__ void fft_b(__gm__ uint8_t *__restrict__ ffts_ad
 }
 
 } // namespace FFT1DBKernel
+
+#endif

@@ -7,8 +7,8 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
-#ifndef INCLUDE_UTILS_H
-#define INCLUDE_UTILS_H
+#ifndef OPSFFT_COMMON_KERNEL_BASE_UTILS_H
+#define OPSFFT_COMMON_KERNEL_BASE_UTILS_H
 
 template <typename IN_DTYPE>
 __aicore__ inline void CreateCaMatrix(const AscendC::LocalTensor<IN_DTYPE> &dst,
@@ -32,12 +32,12 @@ __aicore__ inline void SetPadding(IN_DTYPE padValue)
     AscendC::SetLoadDataPaddingValue<IN_DTYPE>(padValue);
 }
 
-__aicore__ inline void SetAtomicnone()
+__aicore__ inline void SetAtomicNone()
 {
     AscendC::SetAtomicNone();
 }
 
-__aicore__ inline void SetMasknorm()
+__aicore__ inline void SetMaskNorm()
 {
 #if __CCE_AICORE__ == 100
     return;
@@ -45,7 +45,7 @@ __aicore__ inline void SetMasknorm()
     AscendC::SetMaskNorm();
 }
 
-__aicore__ inline void SetNdpara(uint16_t ndNum, uint16_t srcNdStride, uint16_t dstNdStride)
+__aicore__ inline void SetNdPara(uint16_t ndNum, uint16_t srcNdStride, uint16_t dstNdStride)
 {
     AscendC::SetFixpipeNz2ndFlag(ndNum, srcNdStride, dstNdStride);
 }

@@ -21,9 +21,9 @@ struct l1_to_bt {
 
     __aicore__ l1_to_bt(AscendC::LocalTensor<DataType> biasTableTensor,
                         AscendC::LocalTensor<DataType> biasL1Tensor,
-                        uint32_t ntileActual)
+                        uint32_t nTileActual)
     {
         AscendC::DataCopy(
-            biasTableTensor, biasL1Tensor, {1, static_cast<uint16_t>(CeilDiv<BLOCK_SIZE>(ntileActual)), 0, 0});
+            biasTableTensor, biasL1Tensor, {1, static_cast<uint16_t>(CeilDiv<BLOCK_SIZE>(nTileActual)), 0, 0});
     };
 };
