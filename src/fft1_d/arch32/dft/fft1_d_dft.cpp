@@ -87,6 +87,12 @@ extern "C" aclError aclfftFft1DDft(
     }
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = ascendcPlatform->GetCoreNumAic();
+    // 平台信息查询失败时 GetCoreNumAic 可能返回 0（同仓其余 13 处入口均已兜底），
+    // 以 0 block 启动内核行为未定义，D2H 会把未写入的缓冲当结果返回（issue #112）
+    if (coreNum == 0)
+    {
+        coreNum = 1;
+    }
     auto matrix = InitRotationMatrix(n);
     uint32_t sysWorkspaceSize = ascendcPlatform->GetLibApiWorkSpaceSize();
 

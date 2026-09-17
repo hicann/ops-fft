@@ -46,7 +46,15 @@ static void InitRadix(uint32_t n, std::vector<uint32_t>& radixVec)
 {
     int64_t minRadix = 8;
     int64_t maxRadix = 64;
-    int64_t logN = static_cast<int64_t>(log((float)n) / log(2.0f));
+    // 入口已校验 n 为 2 的幂，整数位扫描求 log2 精确且跨平台确定：
+    // 单精度 log((float)n)/log(2.0f) 在 n=32768 时受浮点舍入影响得
+    // 14.999...，截断为 14 会误入 LOGN_14 分支产生乘积 16384 的错误
+    // 分解，FFT 结果静默错误（issue #111）
+    int64_t logN = 0;
+    for (uint32_t v = n; v > 1; v >>= 1)
+    {
+        ++logN;
+    }
     if (n >= pow(minRadix, 2) && n <= pow(maxRadix, 2)) {
         radixVec = {8, 8};
         for (int64_t idx = 0; idx < logN - 6; idx++) {

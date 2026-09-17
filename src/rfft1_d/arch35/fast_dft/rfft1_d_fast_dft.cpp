@@ -291,6 +291,12 @@ extern "C" aclError aclfftRfft1D(float* x, float* y, uint32_t n, int32_t norm, u
 
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     uint32_t coreNum = ascendcPlatform->GetCoreNumAic();
+    // 平台信息查询失败时 GetCoreNumAic 可能返回 0（同仓其余 13 处入口均已兜底），
+    // 以 0 block 启动内核行为未定义，D2H 会把未写入的缓冲当结果返回（issue #112）
+    if (coreNum == 0)
+    {
+        coreNum = 1;
+    }
 
     auto dft = Rfft1DDftGen(n, norm);
 
